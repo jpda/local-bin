@@ -1,0 +1,91 @@
+#!/bin/bash
+# github.com/jpda
+# teams updater for apple silicon macs
+# today, while universal binaries exist for teams, the teams installer actually contains two packages:
+#  - the teams app itself
+#  - the MSTeamsAudioDriver - I think it's related to playing music/hi-fi audio in teams, not sure tho
+# `MSTeamsAudioDriver.pkg` is still x64, so the main teams installer will ask to install rosetta
+# 
+# to get around this, we unpack the installer pkg,
+# look for the Teams.app package (`Teams_osx_app.pkg`, at least for now), and
+# expand the Payload, which is `Microsoft Teams.app`.
+# once expanded, it's copied into `/Applications` after killing any running teams processes
+# lastly it cleans up the tmp dir it uses as scratch space
+#
+# usage:
+# - no arguments downloads latest public teams installer package from microsoft
+# - or pass in the name of an already-acquired teams_osx.pkg
+#   e.g.,
+#   `teamsup ~/Downloads/Teams_osx.pkg`
+#
+# not supported, no warranties, use at your own risk, tip your server, etc
+
+WORK=/tmp/teams-up
+TEAMS_PKG_PATH=$WORK/Teams_osx.pkg
+FILE_TYPE=''
+
+echo "Setting up working directory $WORK"
+echo "Default package path $TEAMS_PKG_PATH"
+mkdir -p $WORK
+cd $WORK
+
+function stopTeams() {
+  # stop teams, but exclude this grep command from the PID kill list
+  # since we're searching for the pattern, this command will also appear, so the second grep is to ignore grep
+  # i feel like there's prob a better way to do this, but a bash wizard I am not
+  ps -fe | grep "Microsoft Teams.app/Contents/MacOS/Teams" | grep -wv "grep" | awk '{print $2}' | xargs kill
+}
+
+function getTeams(){
+  # this is the public download url for teams mac - it will redirect a few times, but this links should always
+  # get the latest teams installer that is publicly released
+  # using progress-bar here because of the redirects it gets sort of messy
+  curl -L "https://go.microsoft.com/fwlink/p/?LinkID=869428" -o $TEAMS_PKG_PATH --progress-bar
+}
+
+function updateTeams() {
+  echo "Expanding package, looking for Teams_osx_app.pkg"
+  pkgutil --expand $TEAMS_PKG_PATH $WORK/teamspkg #>> $WORK/pkgutil.log
+  echo "Expanding payload to Microsoft Teams.app"
+  tar -xf $WORK/teamspkg/Teams_osx_app.pkg/Payload #>> $WORK/payload.log
+  OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+  echo "Current installed version: $OLD_VER"
+  NEW_VER=$(/usr/libexec/PlistBuddy $WORK/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+  echo "New version: $NEW_VER"
+  if [[ $OLD_VER == $NEW_VER ]] ; then
+    echo "Same version, nothing to do"
+    return 0 ; 
+  fi
+  echo "Upgrading $OLDVER --> $NEWVER"
+  FILE_TYPE=$(file $WORK/Microsoft\ Teams.app/Contents/MacOS/Teams)
+  if [[ $FILE_TYPE == *"arm64"* ]]; then
+    echo "This is an arm64 binary, moving to Applications..."
+    /bin/mv /Applications/Microsoft\ Teams.app /Applications/TeamsOld.app
+    /bin/cp -Rf ./Microsoft\ Teams.app /Applications/
+    /bin/rm -rf /Applications/TeamsOld.app
+  else
+    echo "This is not an arm64 binary, exiting. If you really want this, copy it manually."
+  fi
+}
+
+function cleanup() {
+  echo "Removing schmutz"
+  rm -rf $WORK
+}
+
+echo "Stopping Teams"
+stopTeams
+
+if [ "$1" == '' ] ; then
+  echo "Downloading teams package..."
+  getTeams
+else
+  echo "setting path to $1" ;
+  TEAMS_PKG_PATH="$1"
+fi
+
+echo "Got the file, working on $TEAMS_PKG_PATH from $(pwd)"
+updateTeams
+cleanup
+
+echo "finished"

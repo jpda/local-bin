@@ -1,0 +1,44 @@
+#!/bin/bash
+
+setWallpaper(){
+  local SAVE_DIR="/tmp/bingpaper"
+  mkdir -p $SAVE_DIR
+  rm -rf "$SAVE_DIR/*"
+
+  echo "=== BingPaper starting at $(date) ==="
+  echo " Save path : $SAVE_DIR"
+  resp=$(curl -s https://www.bing.com/HPImageArchive.aspx\?format\=js\&n\=1 | jq '.images[0].url' -r)
+
+  echo " Building URL to fetch..."
+  echo "  Orig : $resp"
+  
+  newPath=${resp//1920x1080.jpg/UHD.jpg}
+  url="https://www.bing.com$newPath"
+
+  echo "  UHD  : $newPath"
+  # echo "Storage: $SAVE_PATH"
+  echo "  URL  : $url"
+  
+
+  cd $SAVE_DIR && curl -s -O $url
+  echo " File downloaded, fixing up names..."
+  local FILE=$(ls *id=* | head -n 1)
+  local NEW_NAME=$(echo "${FILE%%&*}")
+  local CLEAN_NAME=$(echo "${NEW_NAME#*id=}")
+  echo "  orig :" $FILE
+  echo "  trail:" $NEW_NAME
+  echo "  start:" $CLEAN_NAME
+  
+  local FINAL_PATH=$SAVE_DIR/$CLEAN_NAME
+  echo "  final:" $FINAL_PATH
+  mv $SAVE_DIR/$FILE $FINAL_PATH 
+  echo " File renamed, setting wallpaper..."
+  osascript -e 'tell application "System Events"' -e 'tell every desktop' -e "set picture to \"$FINAL_PATH\"" -e 'end' -e 'end'
+  echo "=== BingPaper finished at $(date) ==="
+}
+
+setWallpaper
+
+# curl -s -o /tmp/bingpaper/wall.jpg $(curl -s https://www.bing.com/HPImageArchive.aspx\?format\=js\&n\=1 | jq '.images[0].url' -r | {read ok; echo "https://www.bing.com${ok//1920x1080.jpg/UHD.jpg}"})
+
+# osascript -e 'tell application "System Events"' -e 'tell every desktop' -e 'set picture to "/tmp/bingpaper/wall.jpg"' -e 'end' -e 'end'
