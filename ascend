@@ -1,0 +1,16 @@
+mgc role-management directory role-assignment-schedule-requests create --body \
+'{
+    "action": "SelfActivate",
+    "justification": "TOU work",
+    "roleDefinitionId": "62e90394-69f5-4237-9190-012177145e10",
+    "directoryScopeId": "/",
+    "principalId": "7c61593d-8226-42b2-be6e-d3b81d9ecd41",
+    "scheduleInfo": {
+        "expiration": {
+            "type": "AfterDuration",
+            "duration": "PT5H"
+        }
+    }
+}'
+
+mgc role-management directory role-assignment-schedule-requests list
