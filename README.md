@@ -16,3 +16,6 @@ Apple arm64 build of the preview [Microsoft Graph CLI](https://github.com/micros
 
 ## dev-jwts
 Apple arm64 build of [@DamianEdwards](https://github.com/DamianEdwards)' [jwt generator](https://github.com/DamianEdwards/AspNetCoreDevJwts)
+
+## config/DefaultKeyBinding.dict
+Updating default key bindings to make `Home` and `End` work per-line as expected.
