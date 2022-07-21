@@ -88,4 +88,6 @@ echo "Got the file, working on $TEAMS_PKG_PATH from $(pwd)"
 updateTeams
 cleanup
 
+open /Applications/Microsoft\ Teams.app
+
 echo "finished"
