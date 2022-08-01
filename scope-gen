@@ -1,0 +1,18 @@
+app_id=556214c6-dc59-42bc-af78-48c3abd37a54
+app=$(az ad app show --id $app_id)
+oldScopes=$(echo $app | jq .api.oauth2PermissionScopes)
+newScopes=$(echo "{
+    \"id\":\"$(uuidgen)\",
+    \"adminConsentDescription\": \"number2\",
+    \"adminConsentDisplayName\": \"number2\",
+    \"isEnabled\": true,
+    \"type\": \"Admin\",
+    \"userConsentDescription\": \"number2\",
+    \"userConsentDisplayName\": \"number2\",
+    \"value\": \"number2\", 
+}");
+
+newScopeBlock=$(echo $oldScopes | jq ". + [${newScopes}]")
+api=$(echo $app | jq .api)
+newApiBlock=$(echo $api | jq ". | { acceptMappedClaims,knownClientApplications,preAuthorizedApplications,requestedAccessTokenVersion,oauth2PermissionScopes: ${newScopeBlock}}")
+echo $newApiBlock
