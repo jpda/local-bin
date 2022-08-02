@@ -56,7 +56,7 @@ function updateTeams() {
     echo "Same version, nothing to do"
     return 0 ; 
   fi
-  echo "Upgrading $OLDVER --> $NEWVER"
+  echo "Upgrading $OLD_VER --> $NEW_VER"
   FILE_TYPE=$(file $WORK/Microsoft\ Teams.app/Contents/MacOS/Teams)
   if [[ $FILE_TYPE == *"arm64"* ]]; then
     echo "This is an arm64 binary, moving to Applications..."
