@@ -15,24 +15,41 @@
 # usage:
 # - no arguments downloads latest public teams installer package from microsoft
 # - or pass in the name of an already-acquired teams_osx.pkg
+# - or use `--prerel` to download the prerelease installer package
+# prerel sourced from github/@ItzLevvie (https://github.com/ItzLevvie/MicrosoftTeams-msinternal)
 #   e.g.,
 #   `teamsup ~/Downloads/Teams_osx.pkg`
+#   `teamsup --prerel`
+#   `teamsup --prerel ring2`
 #
 # not supported, no warranties, use at your own risk, tip your server, etc
+
+# see: https://stackoverflow.com/a/24067243
+function version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
+
+# see: https://stackoverflow.com/a/33597663 
+# set verbose level to info
+__VERBOSE=6
+LOG_LEVELS=([0]="emerg" [1]="alert" [2]="crit" [3]="err" [4]="warning" [5]="notice" [6]="info" [7]="debug")
+function .log () {
+  local LEVEL=${1}
+  shift
+  if [ ${__VERBOSE} -ge ${LEVEL} ]; then
+    echo "[${LOG_LEVELS[$LEVEL]}][$(date -jIseconds)]" "$@"
+  fi
+}
 
 WORK=/tmp/teams-up
 TEAMS_PKG_PATH=$WORK/Teams_osx.pkg
 FILE_TYPE=''
-
-echo "Setting up working directory $WORK"
-echo "Default package path $TEAMS_PKG_PATH"
-mkdir -p $WORK
-cd $WORK
+PREREL_RING='ring2'
+OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
 
 function stopTeams() {
   # stop teams, but exclude this grep command from the PID kill list
   # since we're searching for the pattern, this command will also appear, so the second grep is to ignore grep
   # i feel like there's prob a better way to do this, but a bash wizard I am not
+  .log 6 "Stopping Teams"
   ps -fe | grep "Microsoft Teams.app/Contents/MacOS/Teams" | grep -wv "grep" | awk '{print $2}' | xargs kill
 }
 
@@ -40,54 +57,83 @@ function getTeams(){
   # this is the public download url for teams mac - it will redirect a few times, but this links should always
   # get the latest teams installer that is publicly released
   # using progress-bar here because of the redirects it gets sort of messy
+  .log 6 "downloading release teams installer"
   curl -L "https://go.microsoft.com/fwlink/p/?LinkID=869428" -o $TEAMS_PKG_PATH --progress-bar
 }
 
-function updateTeams() {
-  echo "Expanding package, looking for Teams_osx_app.pkg"
-  pkgutil --expand $TEAMS_PKG_PATH $WORK/teamspkg #>> $WORK/pkgutil.log
-  echo "Expanding payload to Microsoft Teams.app"
-  tar -xf $WORK/teamspkg/Teams_osx_app.pkg/Payload #>> $WORK/payload.log
-  OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
-  echo "Current installed version: $OLD_VER"
-  NEW_VER=$(/usr/libexec/PlistBuddy $WORK/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
-  echo "New version: $NEW_VER"
-  if [[ $OLD_VER == $NEW_VER ]] ; then
-    echo "Same version, nothing to do"
-    return 0 ; 
+function getTeamsPrerel(){
+  # this uses the pre-release download urls from here: https://github.com/ItzLevvie/MicrosoftTeams-msinternal
+  # if you aren't entitled to these, or don't know what they are, probably shouldn't use them
+  # https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=ring2&teamsRing=ring2&agent=TeamsBuilds
+  # the ring-URL logic here is too simple and doesn't work for some rings because other parts of the url are different
+  TEAMS_VER=$(curl -s "https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=$PREREL_RING&teamsRing=$PREREL_RING&agent=TeamsBuilds" | jq -r .BuildSettings.Desktop.osx.latestVersion)
+  .log 6 "Currently installed version is $OLD_VER; latest $PREREL_RING is $TEAMS_VER"
+  if version_gt $TEAMS_VER $OLD_VER ; then
+    .log 6 "Downloading prerelease teams installer for $TEAMS_VER"
+    curl "https://statics.teams.cdn.office.net/production-osx/$TEAMS_VER/Teams_osx.pkg" -o $TEAMS_PKG_PATH --progress-bar
+  else 
+    .log 6 "Installed version ($OLD_VER) is newer than $PREREL_RING version ($TEAMS_VER), skipping"
+    exit 1
   fi
-  echo "Upgrading $OLD_VER --> $NEW_VER"
+}
+
+function updateTeams() {
+  .log 6 "Expanding package, looking for Teams_osx_app.pkg"
+  pkgutil --expand $TEAMS_PKG_PATH $WORK/teamspkg #>> $WORK/pkgutil.log
+  .log 6 "Expanding payload to Microsoft Teams.app"
+  tar -xf $WORK/teamspkg/Teams_osx_app.pkg/Payload #>> $WORK/payload.log
+  # OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+  .log 6 "Current installed version: $OLD_VER"
+  NEW_VER=$(/usr/libexec/PlistBuddy $WORK/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+  .log 6 "New version: $NEW_VER"
+  if version_gt $OLD_VER $NEW_VER ; then
+    .log 4 "No update available, installed $OLD_VER is newer than $NEW_VER"
+    return 0;
+  fi
+  
+  .log 6 "Upgrading $OLD_VER --> $NEW_VER"
   FILE_TYPE=$(file $WORK/Microsoft\ Teams.app/Contents/MacOS/Teams)
   if [[ $FILE_TYPE == *"arm64"* ]]; then
-    echo "This is an arm64 binary, moving to Applications..."
+    .log 6 "This is an arm64 binary, moving to Applications."
+    stopTeams
     /bin/mv /Applications/Microsoft\ Teams.app /Applications/TeamsOld.app
     /bin/cp -Rf ./Microsoft\ Teams.app /Applications/
     /bin/rm -rf /Applications/TeamsOld.app
   else
-    echo "This is not an arm64 binary, exiting. If you really want this, copy it manually."
+    .log 1 "\e[1;31m This is not an arm64 binary, teams will not be replaced. If you really want this, copy it manually."
   fi
 }
 
 function cleanup() {
-  echo "Removing schmutz"
+  .log 6 "Removing schmutz"
   rm -rf $WORK
 }
 
-echo "Stopping Teams"
-stopTeams
+# setup working directories
+
+echo "=== teams updater go! $(date) ==="
+.log 6 "Setting up working directory $WORK; default package path $TEAMS_PKG_PATH"
+mkdir -p $WORK
+cd $WORK
+
+# get teams
 
 if [ "$1" == '' ] ; then
-  echo "Downloading teams package..."
   getTeams
-else
-  echo "setting path to $1" ;
+elif [ "$1" == '--prerel' ] ; then
+  if [ "$2" == '' ] ; then
+    .log 6 "No version specified, using default ($PREREL_RING)"
+  else
+    PREREL_RING=$2
+  fi
+  getTeamsPrerel
+else # you provided a package path
+  .log 6 "setting path to $1" ;
   TEAMS_PKG_PATH="$1"
 fi
 
-echo "Got the file, working on $TEAMS_PKG_PATH from $(pwd)"
 updateTeams
 cleanup
 
+.log 6 "Finished"
 open /Applications/Microsoft\ Teams.app
-
-echo "finished"
