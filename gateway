@@ -1,0 +1,9 @@
+endpoint='http://192.168.12.1'
+if [ $# -gt 0 ]; then endpoint=$1; fi;
+# echo "connecting to $endpoint"
+admin_pass=$GATEWAY_ADMIN_PASSWORD
+auth_payload=$(echo '{"username": "admin", "password": ""}' | jq -c ".password = \"${admin_pass}\"");
+url="$endpoint/TMI/v1/auth/login";
+
+token=$(curl -s -d "${auth_payload}" "$endpoint/TMI/v1/auth/login" | jq -r ".auth.token");
+echo $token;
