@@ -11,6 +11,9 @@ Submits PIM elevation request. If self-activate eligible, will self-activate. Up
 ## bingpic
 Downloads the latest Bing picture of the day and sets as wallpaper.
 
+## base-font.css
+Safari overrides for Segoe UI font-family, as Safari will not use user-installed fonts with tracking protection enabled. This switches Segoe to --apple-system font, improving sites that lack fall-back fonts.
+
 ## dev-jwts
 Apple arm64 build of [@DamianEdwards](https://github.com/DamianEdwards)' [jwt generator](https://github.com/DamianEdwards/AspNetCoreDevJwts)
 
