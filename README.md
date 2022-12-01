@@ -1,6 +1,6 @@
 # local-bin
 
-tools & scripts
+apple silicon tools & scripts
 
 ## adfsrp.sh
 Coming soon
