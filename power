@@ -1,0 +1,17 @@
+#!/opt/homebrew/bin/python3
+
+import io
+import decimal
+import requests
+from bs4 import BeautifulSoup
+
+req = requests.get("http://rpi-utility/cgi-bin/apcupsd/upsfstats.cgi").text
+soup = BeautifulSoup(req, "html.parser")
+data = soup.pre.get_text()
+
+d = dict(map(lambda x: x.split(':', 1), data.splitlines()))
+clean = {k.strip(): v.strip() for k, v in d.items()}
+power = clean['NOMPOWER'].split(' ')[0]
+load = clean['LOADPCT'].split(' ')[0]
+loadInWatts = int(power) * (decimal.Decimal(load) / 100)
+print(loadInWatts)
