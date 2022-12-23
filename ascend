@@ -8,7 +8,7 @@ mgc role-management directory role-assignment-schedule-requests create --body \
     "scheduleInfo": {
         "expiration": {
             "type": "AfterDuration",
-            "duration": "PT5H"
+            "duration": "PT2H"
         }
     }
 }'

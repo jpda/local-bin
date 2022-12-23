@@ -22,7 +22,10 @@ setWallpaper(){
 
   cd $SAVE_DIR && curl -s -O $url
   echo " File downloaded, fixing up names..."
-  local FILE=$(ls *id=* | head -n 1)
+  # local FILE=$(ls *id=* | head -n 1)
+  # this is a hack to get the (only) file in the directory - this was due to a change in curl 7.86
+  # where the file name no longer preserves the query
+  local FILE=$(ls | head -n 1)
   local NEW_NAME=$(echo "${FILE%%&*}")
   local CLEAN_NAME=$(echo "${NEW_NAME#*id=}")
   echo "  orig :" $FILE
