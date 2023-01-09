@@ -67,11 +67,18 @@ function getTeamsPrerel(){
   # if you aren't entitled to these, or don't know what they are, probably shouldn't use them
   # https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=ring2&teamsRing=ring2&agent=TeamsBuilds
   # the ring-URL logic here is too simple and doesn't work for some rings because other parts of the url are different
-  TEAMS_VER=$(curl -s "https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=$PREREL_RING&teamsRing=$PREREL_RING&agent=TeamsBuilds" | jq -r .BuildSettings.Desktop.osx.latestVersion)
+  BUILD_INFO=$(curl -s "https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=$PREREL_RING&teamsRing=$PREREL_RING&agent=TeamsBuilds" | jq -r .BuildSettings.WebView2.macOS)
+  TEAMS_VER=$(echo $BUILD_INFO | jq -r .latestVersion);
+  BUILD_LINK=$(echo $BUILD_INFO | jq -r .buildLink);
   .log 6 "Currently installed version is $OLD_VER; latest $PREREL_RING is $TEAMS_VER; Force install is $FORCE_INSTALL"
   if version_gt $TEAMS_VER $OLD_VER || $FORCE_INSTALL; then
-    .log 6 "Downloading prerelease teams installer for $TEAMS_VER"
-    curl "https://statics.teams.cdn.office.net/production-osx/$TEAMS_VER/Teams_osx.pkg" -o $TEAMS_PKG_PATH --progress-bar
+    # DOWNLOAD_URL="https://staticsint.teams.cdn.office.net/production-osx/$TEAMS_VER/Teams_osx.pkg"
+    DOWNLOAD_URL=$BUILD_LINK
+    if [ $PREREL_RING=="ring0" ]; then
+      DOWNLOAD_URL=${BUILD_LINK//statics./staticsint.}
+    fi
+    .log 6 "Downloading prerelease teams installer for $TEAMS_VER from $DOWNLOAD_URL"
+    curl $DOWNLOAD_URL -o $TEAMS_PKG_PATH --progress-bar
   else 
     .log 6 "Installed version ($OLD_VER) is newer than $PREREL_RING version ($TEAMS_VER), skipping"
     exit 1
@@ -81,11 +88,29 @@ function getTeamsPrerel(){
 function updateTeams() {
   .log 6 "Expanding package, looking for Teams_osx_app.pkg"
   pkgutil --expand $TEAMS_PKG_PATH $WORK/teamspkg #>> $WORK/pkgutil.log
-  .log 6 "Expanding payload to Microsoft Teams.app"
-  tar -xf $WORK/teamspkg/Teams_osx_app.pkg/Payload #>> $WORK/payload.log
-  # OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+  .log 6 "Expanding payload to .app"
+  APP_FILE_NAME=$(tar --list --file $WORK/teamspkg/com.microsoft.teams2.pkg/Payload | head -2 | tail -1)
+  tar -xzf $WORK/teamspkg/com.microsoft.teams2.pkg/Payload
+  APP_FILE_NAME=${APP_FILE_NAME:2}
+  .log 6 "Extracted $APP_FILE_NAME"
+  OLD_VER=0.0.0.0
+  OLD_VERSION_FILE="/Applications/${APP_FILE_NAME}/Contents/Info.plist"
+  if [[ -f "${OLD_VERSION_FILE}" ]] ; then
+    .log 6 "Found existing Teams app, checking version"
+      OLD_VER=$(/usr/libexec/PlistBuddy "${OLD_VERSION_FILE}" -c "print CFBundleVersion")
+  else 
+    .log 6 "No existing Teams app found, installing"
+  fi
   .log 6 "Current installed version: $OLD_VER"
-  NEW_VER=$(/usr/libexec/PlistBuddy $WORK/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+
+  NEW_VERSION_FILE="${WORK}/${APP_FILE_NAME}/Contents/Info.plist"
+  .log 6 "Looking for $NEW_VERSION_FILE"
+  if [[ -f "${NEW_VERSION_FILE}" ]] ; then
+    .log 6 "found plist for new version"
+        NEW_VER=$(/usr/libexec/PlistBuddy "${NEW_VERSION_FILE}" -c "print CFBundleVersion")
+  else 
+    .log 6 "hmm"
+  fi
   .log 6 "New version: $NEW_VER; Override: $FORCE_INSTALL"
   if version_gt $OLD_VER $NEW_VER && $FORCE_INSTALL; then
     .log 4 "No update available, installed $OLD_VER is newer than $NEW_VER"
@@ -93,12 +118,13 @@ function updateTeams() {
   fi
   
   .log 6 "Upgrading $OLD_VER --> $NEW_VER"
-  FILE_TYPE=$(file $WORK/Microsoft\ Teams.app/Contents/MacOS/Teams)
+  # .log 6 $WORK/$APP_FILE_NAME
+  FILE_TYPE=$(file "$(find "${WORK}/${APP_FILE_NAME}/Contents/MacOS/" -maxdepth 1 -type f)")
   if [[ $FILE_TYPE == *"arm64"* ]]; then
     .log 6 "This is an arm64 binary, moving to Applications."
     stopTeams
-    /bin/mv /Applications/Microsoft\ Teams.app /Applications/TeamsOld.app
-    /bin/cp -Rf ./Microsoft\ Teams.app /Applications/
+    /bin/mv "/Applications/${APP_FILE_NAME}" /Applications/TeamsOld.app
+    /bin/cp -Rf "${APP_FILE_NAME}" /Applications/
     /bin/rm -rf /Applications/TeamsOld.app
   else
     .log 1 "\e[1;31m This is not an arm64 binary, teams will not be replaced. If you really want this, copy it manually."
@@ -107,10 +133,11 @@ function updateTeams() {
 
 function cleanup() {
   .log 6 "Removing schmutz"
-  rm -rf $WORK
+  #rm -rf $WORK
 }
 
 # setup working directories
+
 echo "=== teams updater go! $(date) ==="
 .log 6 "Setting up working directory $WORK; default package path $TEAMS_PKG_PATH"
 mkdir -p $WORK
@@ -136,4 +163,4 @@ updateTeams
 cleanup
 
 .log 6 "Finished"
-open /Applications/Microsoft\ Teams.app
+open "/Applications/${APP_FILE_NAME}"
