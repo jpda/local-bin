@@ -39,7 +39,7 @@ function .log () {
   fi
 }
 
-WORK=/tmp/teams-up
+WORK=/tmp/teamsupv2
 TEAMS_PKG_PATH=$WORK/Teams_osx.pkg
 FILE_TYPE=''
 PREREL_RING='ring2'
