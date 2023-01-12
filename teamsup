@@ -71,7 +71,7 @@ function getTeamsPrerel(){
   .log 6 "Currently installed version is $OLD_VER; latest $PREREL_RING is $TEAMS_VER; Force install is $FORCE_INSTALL"
   if version_gt $TEAMS_VER $OLD_VER || $FORCE_INSTALL; then
     .log 6 "Downloading prerelease teams installer for $TEAMS_VER"
-    curl "https://statics.teams.cdn.office.net/production-osx/$TEAMS_VER/Teams_osx.pkg" -o $TEAMS_PKG_PATH --progress-bar
+    curl "https://staticsint.teams.cdn.office.net/production-osx/$TEAMS_VER/Teams_osx.pkg" -o $TEAMS_PKG_PATH --progress-bar
   else 
     .log 6 "Installed version ($OLD_VER) is newer than $PREREL_RING version ($TEAMS_VER), skipping"
     exit 1
