@@ -43,7 +43,9 @@ WORK=/tmp/teamsupv2
 TEAMS_PKG_PATH=$WORK/Teams_osx.pkg
 FILE_TYPE=''
 PREREL_RING='ring2'
-OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+APP_NAME="Microsoft Teams (work preview)"
+APP_PATH="/Applications/${APP_NAME}.app"
+OLD_VER=$(/usr/libexec/PlistBuddy "${APP_PATH}/Contents/Info.plist" -c 'print CFBundleVersion')
 FORCE_INSTALL=false
 
 function stopTeams() {
@@ -51,7 +53,7 @@ function stopTeams() {
   # since we're searching for the pattern, this command will also appear, so the second grep is to ignore grep
   # i feel like there's prob a better way to do this, but a bash wizard I am not
   .log 6 "Stopping Teams"
-  ps -fe | grep "Microsoft Teams.app/Contents/MacOS/Teams" | grep -wv "grep" | awk '{print $2}' | xargs kill
+  ps -fe | grep "${APP_PATH}/Contents/MacOS/${APP_NAME}" | grep -wv "grep" | awk '{print $2}' | xargs kill
 }
 
 function getTeams(){
@@ -79,6 +81,9 @@ function getTeamsPrerel(){
     fi
     .log 6 "Downloading prerelease teams installer for $TEAMS_VER from $DOWNLOAD_URL"
     curl $DOWNLOAD_URL -o $TEAMS_PKG_PATH --progress-bar
+  elif [ $OLD_VER == $TEAMS_VER ]; then
+    .log 6 "Installed version ($OLD_VER) is the same as $PREREL_RING version ($TEAMS_VER), skipping"
+    exit 1
   else 
     .log 6 "Installed version ($OLD_VER) is newer than $PREREL_RING version ($TEAMS_VER), skipping"
     exit 1
@@ -133,7 +138,7 @@ function updateTeams() {
 
 function cleanup() {
   .log 6 "Removing schmutz"
-  #rm -rf $WORK
+  rm -rf $WORK
 }
 
 # setup working directories
