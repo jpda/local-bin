@@ -1,0 +1,6 @@
+#!/bin/bash
+if [ -p /dev/stdin ]; then
+    read -a input
+    # thanks sahil https://winsmarts.com/decode-jwt-token-on-terminal-d005ba6c5aa1
+    jq '.access_token | split(".") | .[1] | @base64d | fromjson' <<< ${input[@]}
+fi

@@ -1,0 +1,85 @@
+#!/bin/bash
+# for interacting with the Suncomm O1 5G router
+
+ROUTER_ENDPOINT="http://192.168.100.1/api"
+ROUTER_PASSWORD="admin"
+ENCODED_PASSWORD=$(echo -n $ROUTER_PASSWORD | openssl base64)
+# using openssl because it adds padding
+SID="00000000000000000000000000000000"
+
+function checkCache() {
+    if ([[ -f "$1" ]]); then
+        local now=$(date +%s)
+        local date=$(date -j -f "%s" "$(stat -f "%m" $1)" +"%s")
+        local SID_LAST_MODIFIED=$((now - date))
+        if [[ $SID_LAST_MODIFIED -lt $2 ]]; then
+            return
+        fi
+    fi
+    false
+}
+
+# login function
+function login() {
+    local DATA=$(submitCommand login login ~/.gateway_sid 600 password "$ENCODED_PASSWORD")
+    SID=$(echo $DATA | jq -r .result.sid)
+}
+
+# cell status
+function getStatus() {
+    local DATA=$(submitCommand "lte" "get_runtime" ~/.gateway_status 60)
+    local RESULT=$(echo $DATA | jq -r .result.info.LTE_CELL | tr -d ' ')
+    local arrIN=(${RESULT//,/ })
+
+    local MODE=$(echo $RESULT | cut -d',' -f3)
+    local BAND=$(echo $RESULT | cut -d',' -f11)
+    local BANDWIDTH=$(echo $RESULT | cut -d',' -f12)
+    local RSRP=$(echo $RESULT | cut -d',' -f13)
+    local RSRQ=$(echo $RESULT | cut -d',' -f14)
+    local SINR=$(echo $RESULT | cut -d',' -f15)
+
+    jq -n --argjson mode "$MODE" \
+        --argjson band "$BAND" \
+        --argjson bandwidth "$BANDWIDTH" \
+        --argjson rsrp "$RSRP" \
+        --argjson rsrq "$RSRQ" \
+        --argjson sinr "$SINR" \
+        '{"mode":$mode,"band":$band,"bandwidth":$bandwidth,"rsrp":$rsrp,"rsrq":$rsrq,"sinr":$sinr}'
+}
+
+# submit AT command
+function getCAStatus() {
+    local DATA=$(submitCommand "lte" "at_cmd" ~/.gateway_qcainfo 600 cmd AT+qcainfo)
+    local RESULT=$(echo $DATA | jq -r .result.result | tr -d '\n' | tr -d '\r' | tr -d ' ')
+    local arrIN=(${RESULT//,/ })
+
+    IFS=',' read -ra ADDR <<<"$($RESULT | tr -d ' ')"
+    for i in "${arrIN[@]}"; do
+        echo "$i"
+    done
+}
+
+function getDashboard() {
+    local DATA=$(submitCommand "dashboard" "web" ~/.gateway_dashboard 60)
+    echo $DATA | jq -r .result
+}
+
+function submitCommand() { # module, api, cache, cachetime, param1, param2
+    if checkCache $3 $4; then
+        echo $(cat $3)
+        return
+    fi
+
+    local REQUEST=$(jq -r -n --arg sid "$SID" --arg mod "$1" --arg api "$2" '{"version":"1.0","sid":$sid,"mid":0,"module":$mod,"api":$api}')
+
+    if [[ $5 != "" ]]; then
+        REQUEST=$(jq -r -n --arg sid $SID --arg mod "$1" --arg api "$2" --arg cmd "$5" --arg exe "$6" '{"version":"1.0","sid":$sid,"mid":0,"module":$mod,"api":$api, "param": {($cmd): $exe }}')
+    fi
+    local DATA=$(curl -s $ROUTER_ENDPOINT -X 'POST' --data-binary "$REQUEST")
+    echo $DATA >$3
+    echo $DATA
+}
+
+login
+getStatus
+getCAStatus

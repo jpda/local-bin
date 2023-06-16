@@ -7,4 +7,4 @@ curl -s https://login.microsoftonline.us/$1/metadata/json/1 | jq '.allowedAudien
 echo "== China"
 curl -s https://login.partner.microsoftonline.cn/$1/metadata/json/1 | jq '.allowedAudiences' | sed "s|00000001-0000-0000-c000-000000000000/accounts.accesscontrol.chinacloudapi.cn@||"
 
-# curl https://login.microsoftonline.com/common/UserRealm/user@guest.abb.com\?api-version\=2.0
+# curl https://login.microsoftonline.com/common/UserRealm/ok@adfs.lol\?api-version\=2.0

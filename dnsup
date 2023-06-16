@@ -1,21 +1,67 @@
+#!/bin/bash
+# github.com/jpda
+# updates cloudflare zero trust location network
+# usage:
+# - `dnsup` to get the current configuration
+# - `dnsup set <ip>` sets the IP to the provided IP
+# - `dnsup set` sets the IP to the discovered IP
+#
+# config file format:
+# CFTOKEN=<cloudflare api token>
+# IDENTIFIER=<cloudflare account identifier>
+# LOCATIONID=<cloudflare location identifier>
+# NETWORKID=<cloudflare network identifier>
+# NETWORKNAME=<cloudflare network name>
+
 # https://api.cloudflare.com/client/v4/accounts/{identifier}/gateway/locations
 
-setCfLocation()  {
-    local IP=$(curl -s "https://ipv4.teams.cloudflare.com/" | jq -r .ip)
-    local CFTOKEN=$(cat ~/.cfconfig)
-    local IDENTIFIER="842bca46b6ea361ea2b145f940142e5e"
-    local LOCATIONID="e2ae9546284e4ab4b5cece3f7d890a7e"
-    local NETWORKID="db20abb1e7e94828a909617c1c814325"
-    local PAYLOAD='{"client_default":true,"name":"HQ","networks"'":[{\"network\":\"$IP/32\",\"id\":\"$NETWORKID\"}]}"
+source ~/.cfconfig
+setCfLocation() {
+    if [[ $1 ]]; then
+        local IP=$1
+    else
+        local IP=$(curl -s "https://ipv4.teams.cloudflare.com/" | jq -r .ip)
+    fi
 
+    # local PAYLOAD='{"client_default":true,"name":"$NETWORKNAME"}","networks"'":[{\"network\":\"$IP/32\",\"id\":\"$NETWORKID\"}]}"
+    # could also do string stuff here without jq dependency but it's annoying
+    local PAYLOAD=$(
+        jq -nc --arg networkid "$NETWORKID" \
+            --arg networkname "$NETWORKNAME" \
+            --arg ip "${IP}/32" \
+            '{"client_default":true,
+            "name":$networkname,
+            "networks":[{"network":$ip,"id":$networkid}]}'
+    )
+
+    echo $PAYLOAD
     # https://api.cloudflare.com/client/v4/accounts/{identifier}/gateway/locations/{uuid}
     local URL="https://api.cloudflare.com/client/v4/accounts/$IDENTIFIER/gateway/locations/$LOCATIONID"
-    # echo $URL
-    echo $PAYLOAD
+    echo Setting IP to $IP for network $NETWORKID
     curl -X PUT $URL \
         -H "Authorization: Bearer $CFTOKEN" \
         -H "Content-Type: application/json" \
         --data $PAYLOAD
 }
 
-setCfLocation
+getCfLocation() {
+    local URL="https://api.cloudflare.com/client/v4/accounts/$IDENTIFIER/gateway/locations/$LOCATIONID"
+    curl --silent $URL -H "Authorization: Bearer $CFTOKEN"
+}
+
+if [[ -n $1 ]]; then
+    # update the IP to ...
+    if [[ $1 == "set" ]]; then
+        if [[ -n $2 ]]; then
+            # ... the IP provided
+            setCfLocation $2
+        else
+            # ... the discovered IP
+            setCfLocation
+        fi
+    else
+        setCfLocation $1
+    fi
+else
+    getCfLocation | jq -r .result.networks[0].network
+fi
