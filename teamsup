@@ -136,4 +136,5 @@ updateTeams
 cleanup
 
 .log 6 "Finished"
+sleep 0.5
 open /Applications/Microsoft\ Teams.app

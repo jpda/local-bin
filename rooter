@@ -1,0 +1,160 @@
+#!/bin/bash
+# for interacting with rooter
+
+source ~/.rooterconfig
+COOKIE_JAR=~/.router-auth.txt
+COOKIE_JAR_EXPIRATION_TIME=600
+
+function checkCache() {
+    if ([[ -f "$1" ]]); then
+        local now=$(date +%s)
+        local date=$(date -j -f "%s" "$(stat -f "%m" $1)" +"%s")
+        local SID_LAST_MODIFIED=$((now - date))
+        if [[ $SID_LAST_MODIFIED -lt $2 ]]; then
+            return
+        fi
+    fi
+    false
+}
+
+function translateBandwidth() {
+    case $(($1)) in
+    0) echo 5 ;;
+    1) echo 10 ;;
+    2) echo 15 ;;
+    3) echo 20 ;;
+    4) echo 25 ;;
+    5) echo 30 ;;
+    6) echo 40 ;;
+    7) echo 50 ;;
+    8) echo 60 ;;
+    9) echo 70 ;;
+    10) echo 80 ;;
+    11) echo 90 ;;
+    12) echo 100 ;;
+    13) echo 200 ;;
+    14) echo 400 ;;
+    esac
+}
+
+function login() {
+    if checkCache $COOKIE_JAR $COOKIE_JAR_EXPIRATION_TIME; then
+        return
+    fi
+    curl -s $ROUTER_ENDPOINT -X POST --data-urlencode 'luci_username=root' --data-urlencode "luci_password=${ROUTER_PASSWORD}" --cookie-jar $COOKIE_JAR
+}
+
+# cell status
+# /cgi-bin/luci/admin/modem/get_csq'
+
+function getStatus() {
+    local DATA=$(curl -s "$ROUTER_ENDPOINT/admin/modem/get_csq" --cookie $COOKIE_JAR)
+}
+
+# AT debug log
+# /cgi-bin/luci/admin/modem/get_atlog
+
+function getAtDebugLog() { return; }
+
+function getServingCell() {
+    local DATA=$(submitCommand ~/.gateway_status 60 at+qeng=\"servingcell\")
+    local RESULT=$(echo $DATA | jq -r .result | tr -d ' ')
+    # echo $RESULT
+    local arrIN=(${RESULT//,/ })
+
+    local MODE=$(echo $RESULT | cut -d',' -f3)
+    local BAND=$(echo $RESULT | cut -d',' -f11)
+    local BANDWIDTH=$(translateBandwidth $(echo $RESULT | cut -d',' -f12))
+    local RSRP=$(echo $RESULT | cut -d',' -f13)
+    local RSRQ=$(echo $RESULT | cut -d',' -f14)
+    local SINR=$(echo $RESULT | cut -d',' -f15)
+
+    # echo $MODE $BAND $BANDWIDTH $RSRP $RSRQ $SINR
+
+    jq -n --argjson mode "$MODE" \
+        --argjson band "$BAND" \
+        --argjson bandwidth "$BANDWIDTH" \
+        --argjson rsrp "$RSRP" \
+        --argjson rsrq "$RSRQ" \
+        --argjson sinr "$SINR" \
+        '{"mode":$mode,"band":$band,"bandwidth":$bandwidth,"rsrp":$rsrp,"rsrq":$rsrq,"sinr":$sinr}'
+}
+
+# submit AT command
+function getCAStatus() {
+    local DATA=$(submitCommand ~/.gateway_qcainfo 600 AT+qcainfo)
+    local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r' | tr -d ': ')
+    local lines=(${RESULT//+/ })
+
+    for i in "${lines[@]}"; do
+        if [[ "$i" == *"PCC"* ]]; then
+            local PRIMARY=$(echo $i | cut -d',' -f4)
+            local PRIMARY_BANDWIDTH_SIZE=$(translateBandwidth $(echo $i | cut -d',' -f3))
+            local PRIMARY_BAND=$(echo $i | cut -d',' -f5)
+        fi
+        if [[ "$i" == *"SCC"* ]]; then
+            local SECONDARY=$(echo $i | cut -d',' -f4)
+            local SECONDARY_BANDWIDTH_SIZE=$(translateBandwidth $(echo $i | cut -d',' -f3))
+            # modem response is weird, doesn't match the docs - so secondary band isnt working
+            local SECONDARY_BAND=$(echo $i | cut -d',' -f5)
+            if [[ "$SECONDARY_BAND" == 1 ]]; then
+                # forgive me
+                local SECONDARY_BAND=$(echo $SECONDARY | cut -d 'D' -f2)
+            fi
+        fi
+    done
+
+    echo $PRIMARY $PRIMARY_BANDWIDTH_SIZE $PRIMARY_BAND $SECONDARY $SECONDARY_BANDWIDTH_SIZE $SECONDARY_BAND
+
+    jq -n --argjson primary "$PRIMARY" \
+        --argjson primary_bandwidth_size "$PRIMARY_BANDWIDTH_SIZE" \
+        --argjson primary_band "$PRIMARY_BAND" \
+        --argjson secondary "$SECONDARY" \
+        --argjson secondary_bandwidth_size "$SECONDARY_BANDWIDTH_SIZE" \
+        --argjson secondary_band "$SECONDARY_BAND" \
+        '{"carriers":[{"primary":$primary,"bandwidth":$primary_bandwidth_size,"band":$primary_band},{"secondary":$secondary,"bandwidth":$secondary_bandwidth_size,"band":$secondary_band}]}'
+}
+
+# /cgi-bin/luci/admin/modem/get_csq
+
+function getDashboard() {
+    local DATA=$(submitCommand ~/.gateway_dashboard 60)
+    echo $DATA | jq -r .result
+}
+
+function submitCommand() { # cache, cachetime, param1, param2
+    if checkCache $1 $2; then
+        echo $(cat $1)
+        return
+    fi
+
+    # /cgi-bin/luci/admin/modem/send_atcmd?set=at%2Bqcainfo
+    local DATA=$(curl --get --silent --data-urlencode "set=$3" "${ROUTER_ENDPOINT}admin/modem/send_atcmd" -b $COOKIE_JAR)
+    echo $DATA >$1
+    echo $DATA
+}
+
+login
+if [[ -n $1 ]]; then
+    #echo "executing $1"
+    submitCommand ~/.gateway_$1 60 $1
+    if [[ -n $2 ]]; then
+        echo $(cat ~/.gateway_$1)
+    else
+        cat ~/.gateway_$1 | jq -r .result
+    fi
+else
+    jq -n --argjson serving "$(getServingCell)" \
+        --argjson castatus "$(getCAStatus)" \
+        '{"servingCell":$serving,"ca":$castatus}'
+fi
+
+# +QENG: "servingcell","NOCONN","NR5G-SA","TDD",310,260,xxxxxxx,41,xxxxxx,509790,41,10,-83,-11,23,1,-
+# "servingcell","NOCONN","NR5G-SA","TDD",        310,  260,  xxxxxxx ,41,    xxxxxx, 524190, 41,    10,               -81,   -11,   24,    1     -
+# ""+QENG:               "LTE",    <duplex_mode>,<MCC>,<MNC>,<cellID>,<PCID>,<TAC> , <ARFCN>,<band>,<NR_DL_bandwidth>,<RSRP>,<RSRQ>,<SINR>,<scs>,<sxrlev>
+#
+# +QCAINFO: "PCC",xxxxxx,10,"NR5G BAND 41",41
+# +QCAINFO: "SCC",xxxxxx,1,"NR5G BAND 71",1,191,0,-,-
+
+#+QCAINFO: "PCC",<freq>,<bandwidth>,<band>,<pcell_state>,<PCID>,<RSRP>,<RSRQ>,<RSSI>,<SINR>
+#+QCAINFO: "SCC",<freq>,<bandwidth>,<band>,<scell_state>,<PCID>,<RSRP>,<RSRQ>,<RSSI>,<SINR> */

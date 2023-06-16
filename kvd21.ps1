@@ -1,3 +1,5 @@
+#!/bin/pwsh
+# arcadyan kvd21 gateway scripts from https://www.youtube.com/@NaterTater
 $ErrorActionPreference = 'SilentlyContinue'
 function token
 {
