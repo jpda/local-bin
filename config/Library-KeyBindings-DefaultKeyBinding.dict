@@ -1,4 +1,24 @@
 {
+    /* Modifier syntax */
+    "^" = "control";
+    "$" = "shift";
+    "@" = "command";
+    "~" = "option";
+
+    /* Remap Option + Left / Right keys */
+
+    /* Option + Left Arrow */
+    "~\UF702" = "moveWordLeft:";
+
+    /* Option + Right Arrow */
+    "~\UF703" = "moveWordRight:";
+
+    /* Shift + Option + Left Arrow */
+    "$~\UF702" = "moveWordLeftAndModifySelection:";
+
+    /* Shift + Option + Right Arrow */
+    "$~\UF703" = "moveWordRightAndModifySelection:";
+
     /* Remap Home / End keys */
 
     /* Home Button*/
