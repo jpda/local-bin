@@ -1,9 +1,9 @@
 {
     /* Modifier syntax */
-    "^" = "control";
-    "$" = "shift";
-    "@" = "command";
-    "~" = "option";
+    /* "^" = "control"; */
+    /* "$" = "shift"; */
+    /* "@" = "command"; */
+    /* "~" = "option"; */
 
     /* Remap Option + Left / Right keys */
 
