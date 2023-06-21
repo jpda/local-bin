@@ -99,12 +99,12 @@ function getCAStatus() {
             local SECONDARY_BAND=$(echo $i | cut -d',' -f5)
             if [[ "$SECONDARY_BAND" == 1 ]]; then
                 # forgive me
-                local SECONDARY_BAND=$(echo $SECONDARY | cut -d 'D' -f2)
+                local SECONDARY_BAND=$(echo $SECONDARY | cut -d 'D' -f2 | cut -d '"' -f1)
             fi
         fi
     done
 
-    echo $PRIMARY $PRIMARY_BANDWIDTH_SIZE $PRIMARY_BAND $SECONDARY $SECONDARY_BANDWIDTH_SIZE $SECONDARY_BAND
+    # echo $PRIMARY $PRIMARY_BANDWIDTH_SIZE $PRIMARY_BAND $SECONDARY $SECONDARY_BANDWIDTH_SIZE $SECONDARY_BAND
 
     jq -n --argjson primary "$PRIMARY" \
         --argjson primary_bandwidth_size "$PRIMARY_BANDWIDTH_SIZE" \
@@ -146,7 +146,8 @@ if [[ -n $1 ]]; then
 else
     jq -n --argjson serving "$(getServingCell)" \
         --argjson castatus "$(getCAStatus)" \
-        '{"servingCell":$serving,"ca":$castatus}'
+        --argjson timestamp "$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")" \
+        '{"timestamp":$timestamp,"servingCell":$serving,"ca":$castatus}'
 fi
 
 # +QENG: "servingcell","NOCONN","NR5G-SA","TDD",310,260,xxxxxxx,41,xxxxxx,509790,41,10,-83,-11,23,1,-
