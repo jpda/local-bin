@@ -4,6 +4,7 @@
 source ~/.rooterconfig
 COOKIE_JAR=~/.router-auth.txt
 COOKIE_JAR_EXPIRATION_TIME=600
+DEFAULT_CACHE_EXPIRATION_TIME=600
 
 function checkCache() {
     if ([[ -f "$1" ]]); then
@@ -57,7 +58,7 @@ function getStatus() {
 function getAtDebugLog() { return; }
 
 function getServingCell() {
-    local DATA=$(submitCommand ~/.gateway_status 60 at+qeng=\"servingcell\")
+    local DATA=$(submitCommand ~/.gateway_status 600 at+qeng=\"servingcell\")
     local RESULT=$(echo $DATA | jq -r .result | tr -d ' ')
     # echo $RESULT
     local arrIN=(${RESULT//,/ })
@@ -115,6 +116,22 @@ function getCAStatus() {
         '{"carriers":[{"primary":$primary,"bandwidth":$primary_bandwidth_size,"band":$primary_band},{"secondary":$secondary,"bandwidth":$secondary_bandwidth_size,"band":$secondary_band}]}'
 }
 
+function getTemperature() {
+    local DATA=$(submitCommand ~/.gateway_temperature 600 AT+QTEMP)
+    local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r')
+    local lines=(${RESULT//+/ })
+
+    for i in "${lines[@]}"; do
+        if [[ "$i" == *"QTEMP"* ]]; then
+            local LINE=$(echo $i | cut -d':' -f2)
+            local ITEM=$(echo $LINE | cut -d',' -f1)
+            local TEMPERATURE=$(echo $LINE | cut -d',' -f2)
+            local DATA=$(jq -n --argjson item "$ITEM" --argjson temperature "$TEMPERATURE" '{($item): $temperature | tonumber}')
+            echo $DATA
+        fi
+    done | jq -n '[inputs] | add'
+}
+
 # /cgi-bin/luci/admin/modem/get_csq
 
 function getDashboard() {
@@ -137,7 +154,7 @@ function submitCommand() { # cache, cachetime, param1, param2
 login
 if [[ -n $1 ]]; then
     #echo "executing $1"
-    submitCommand ~/.gateway_$1 60 $1
+    submitCommand ~/.gateway_$1 600 $1
     if [[ -n $2 ]]; then
         echo $(cat ~/.gateway_$1)
     else
@@ -147,8 +164,31 @@ else
     jq -n --argjson serving "$(getServingCell)" \
         --argjson castatus "$(getCAStatus)" \
         --argjson timestamp "$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")" \
-        '{"timestamp":$timestamp,"servingCell":$serving,"ca":$castatus}'
+        --argjson temperature "$(getTemperature)" \
+        '{"timestamp":$timestamp,"temp":$temperature,"servingCell":$serving,"ca":$castatus}'
 fi
+
+# {"result":"AT+qtemp\n+QTEMP:\"modem-lte-sub6-pa1\",\"30\"\n+QTEMP:\"modem-sdr0-pa0\",\"0\"\n+QTEMP:\"modem-sdr0-pa1\",\"0\"\n+QTEMP:\"modem-sdr0-pa2\",\"0\"\n+QTEMP:\"modem-sdr1-pa0\",\"0\"\n+QTEMP:\"modem-sdr1-pa1\",\"0\"\n+QTEMP:\"modem-sdr1-pa2\",\"0\"\n+QTEMP:\"modem-mmw0\",\"0\"\n+QTEMP:\"aoss-0-usr\",\"33\"\n+QTEMP:\"cpuss-0-usr\",\"33\"\n+QTEMP:\"mdmq6-0-usr\",\"33\"\n+QTEMP:\"mdmss-0-usr\",\"33\"\n+QTEMP:\"mdmss-1-usr\",\"33\"\n+QTEMP:\"mdmss-2-usr\",\"33\"\n+QTEMP:\"mdmss-3-usr\",\"32\"\n+QTEMP:\"modem-lte-sub6-pa2\",\"30\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\nOK\n"}
+# AT+qtemp
+# +QTEMP:"modem-lte-sub6-pa1","30"
+# +QTEMP:"modem-sdr0-pa0","0"
+# +QTEMP:"modem-sdr0-pa1","0"
+# +QTEMP:"modem-sdr0-pa2","0"
+# +QTEMP:"modem-sdr1-pa0","0"
+# +QTEMP:"modem-sdr1-pa1","0"
+# +QTEMP:"modem-sdr1-pa2","0"
+# +QTEMP:"modem-mmw0","0"
+# +QTEMP:"aoss-0-usr","33"
+# +QTEMP:"cpuss-0-usr","33"
+# +QTEMP:"mdmq6-0-usr","33"
+# +QTEMP:"mdmss-0-usr","33"
+# +QTEMP:"mdmss-1-usr","33"
+# +QTEMP:"mdmss-2-usr","33"
+# +QTEMP:"mdmss-3-usr","32"
+# +QTEMP:"modem-lte-sub6-pa2","30"
+# +QTEMP:"modem-ambient-usr","31"
+
+# OK
 
 # +QENG: "servingcell","NOCONN","NR5G-SA","TDD",310,260,xxxxxxx,41,xxxxxx,509790,41,10,-83,-11,23,1,-
 # "servingcell","NOCONN","NR5G-SA","TDD",        310,  260,  xxxxxxx ,41,    xxxxxx, 524190, 41,    10,               -81,   -11,   24,    1     -
