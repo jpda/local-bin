@@ -58,7 +58,7 @@ function getStatus() {
 function getAtDebugLog() { return; }
 
 function getServingCell() {
-    local DATA=$(submitCommand ~/.gateway_status 600 at+qeng=\"servingcell\")
+    local DATA=$(submitCommand ~/.gateway_status 300 at+qeng=\"servingcell\")
     local RESULT=$(echo $DATA | jq -r .result | tr -d ' ')
     # echo $RESULT
     local arrIN=(${RESULT//,/ })
@@ -83,7 +83,7 @@ function getServingCell() {
 
 # submit AT command
 function getCAStatus() {
-    local DATA=$(submitCommand ~/.gateway_qcainfo 600 AT+qcainfo)
+    local DATA=$(submitCommand ~/.gateway_qcainfo $DEFAULT_CACHE_EXPIRATION_TIME AT+qcainfo)
     local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r' | tr -d ': ')
     local lines=(${RESULT//+/ })
 
@@ -117,7 +117,7 @@ function getCAStatus() {
 }
 
 function getTemperature() {
-    local DATA=$(submitCommand ~/.gateway_temperature 600 AT+QTEMP)
+    local DATA=$(submitCommand ~/.gateway_temperature $DEFAULT_CACHE_EXPIRATION_TIME AT+QTEMP)
     local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r')
     local lines=(${RESULT//+/ })
 
