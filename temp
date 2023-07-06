@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo $(ambient) | jq '.[0].lastData.tempf'

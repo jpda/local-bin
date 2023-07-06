@@ -1,0 +1,27 @@
+#!/bin/bash
+source ~/.ambient_credentials
+
+function checkCache() {
+    if ([[ -f "$1" ]]); then
+        local now=$(date +%s)
+        local date=$(date -j -f "%s" "$(stat -f "%m" $1)" +"%s")
+        local SID_LAST_MODIFIED=$((now - date))
+        if [[ $SID_LAST_MODIFIED -lt $2 ]]; then
+            return
+        fi
+    fi
+    false
+}
+
+function getLatestConditions() {
+    if checkCache ~/.ambient 300; then
+        echo $(cat ~/.ambient)
+        return
+    fi
+
+    local DATA=$(curl -s "https://rt.ambientweather.net/v1/devices?applicationKey=${AMBIENT_APPLICATION_KEY}&apiKey=${AMBIENT_API_KEY}")
+    echo $DATA >~/.ambient
+    echo $DATA
+}
+
+getLatestConditions
