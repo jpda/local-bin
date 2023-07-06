@@ -126,6 +126,9 @@ function getTemperature() {
             local LINE=$(echo $i | cut -d':' -f2)
             local ITEM=$(echo $LINE | cut -d',' -f1)
             local TEMPERATURE=$(echo $LINE | cut -d',' -f2)
+            if [[ "$TEMPERATURE" == *"0"* ]]; then
+                continue # skip 0s
+            fi
             local DATA=$(jq -n --argjson item "$ITEM" --argjson temperature "$TEMPERATURE" '{($item): $temperature | tonumber}')
             echo $DATA
         fi
@@ -151,9 +154,51 @@ function submitCommand() { # cache, cachetime, param1, param2
     echo $DATA
 }
 
+function assembleStandardOut() {
+    local SERVING_CELL=$(getServingCell)
+    local CA_STATUS=$(getCAStatus)
+    local TEMPERATURE=$(getTemperature)
+    local TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    jq -n --argjson serving "$SERVING_CELL" \
+        --argjson castatus "$CA_STATUS" \
+        --arg timestamp "$TIMESTAMP" \
+        --argjson temperature "$TEMPERATURE" \
+        '{"timestamp":$timestamp,"temp":$temperature,"servingCell":$serving,"ca":$castatus}'
+}
+
+function resetUsb() {
+    ssh tmo 'usbreset 2c7c:0801'
+}
+
+function rebootAll() {
+    resetUsb
+    sleep 1
+    ssh tmo 'reboot'
+}
+
+function resetModem() {
+    sendCommand ~/.gateway_cfun 0 "AT+CFUN=1,1"
+}
+
 login
 if [[ -n $1 ]]; then
     #echo "executing $1"
+    if [[ "$1" == "reboot" ]]; then
+        echo "Resetting modem & rebooting router"
+        rebootAll
+        exit 0
+    fi
+    if [[ "$1" == "reset" ]]; then
+        echo "Resetting modem via CFUN"
+        resetModem
+        exit 0
+    fi
+    if [[ "$1" == "resetusb" ]]; then
+        echo "Resetting modem USB"
+        resetUsb
+        exit 0
+    fi
     submitCommand ~/.gateway_$1 600 $1
     if [[ -n $2 ]]; then
         echo $(cat ~/.gateway_$1)
@@ -161,11 +206,7 @@ if [[ -n $1 ]]; then
         cat ~/.gateway_$1 | jq -r .result
     fi
 else
-    jq -n --argjson serving "$(getServingCell)" \
-        --argjson castatus "$(getCAStatus)" \
-        --argjson timestamp "$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")" \
-        --argjson temperature "$(getTemperature)" \
-        '{"timestamp":$timestamp,"temp":$temperature,"servingCell":$serving,"ca":$castatus}'
+    assembleStandardOut
 fi
 
 # {"result":"AT+qtemp\n+QTEMP:\"modem-lte-sub6-pa1\",\"30\"\n+QTEMP:\"modem-sdr0-pa0\",\"0\"\n+QTEMP:\"modem-sdr0-pa1\",\"0\"\n+QTEMP:\"modem-sdr0-pa2\",\"0\"\n+QTEMP:\"modem-sdr1-pa0\",\"0\"\n+QTEMP:\"modem-sdr1-pa1\",\"0\"\n+QTEMP:\"modem-sdr1-pa2\",\"0\"\n+QTEMP:\"modem-mmw0\",\"0\"\n+QTEMP:\"aoss-0-usr\",\"33\"\n+QTEMP:\"cpuss-0-usr\",\"33\"\n+QTEMP:\"mdmq6-0-usr\",\"33\"\n+QTEMP:\"mdmss-0-usr\",\"33\"\n+QTEMP:\"mdmss-1-usr\",\"33\"\n+QTEMP:\"mdmss-2-usr\",\"33\"\n+QTEMP:\"mdmss-3-usr\",\"32\"\n+QTEMP:\"modem-lte-sub6-pa2\",\"30\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\nOK\n"}
