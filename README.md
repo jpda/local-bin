@@ -49,3 +49,12 @@ Updates `Microsoft Teams.app` on Apple Silicon machines without Rosetta, without
 
 ## config/DefaultKeyBinding.dict
 Updating default key bindings to make `Home` and `End` work per-line as expected.
+
+## external requirements
+- cache folder (~/.local/cache)
+- - 
+- config folder (~/.local/etc)
+- - .ambient_credentials ambientweather.net
+- - .ascend_config PIM
+- - .cfconfig Cloudflare
+- - .rooterconfig
