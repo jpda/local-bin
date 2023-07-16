@@ -1,0 +1,15 @@
+TOOLS_ROOT=~/.local
+CACHE_ROOT="${TOOLS_ROOT}/cache"
+CONFIG_ROOT="${TOOLS_ROOT}/etc"
+
+function checkCache() {
+    if ([[ -f "$1" ]]); then
+        local now=$(date +%s)
+        local date=$(date -j -f "%s" "$(stat -f "%m" $1)" +"%s")
+        local SID_LAST_MODIFIED=$((now - date))
+        if [[ $SID_LAST_MODIFIED -lt $2 ]]; then
+            return
+        fi
+    fi
+    false
+}

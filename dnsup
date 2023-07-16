@@ -15,7 +15,8 @@
 
 # https://api.cloudflare.com/client/v4/accounts/{identifier}/gateway/locations
 
-source ~/.cfconfig
+. _env
+source "${CONFIG_ROOT}/.cloudflare"
 setCfLocation() {
     if [[ $1 ]]; then
         local IP=$1

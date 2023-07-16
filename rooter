@@ -1,22 +1,10 @@
 #!/bin/bash
 # for interacting with rooter
-
-source ~/.rooterconfig
-COOKIE_JAR=~/.router-auth.txt
+. _env
+source "${CONFIG_ROOT}/.rooter"
+COOKIE_JAR="${CACHE_ROOT}/.router-auth.txt"
 COOKIE_JAR_EXPIRATION_TIME=600
 DEFAULT_CACHE_EXPIRATION_TIME=600
-
-function checkCache() {
-    if ([[ -f "$1" ]]); then
-        local now=$(date +%s)
-        local date=$(date -j -f "%s" "$(stat -f "%m" $1)" +"%s")
-        local SID_LAST_MODIFIED=$((now - date))
-        if [[ $SID_LAST_MODIFIED -lt $2 ]]; then
-            return
-        fi
-    fi
-    false
-}
 
 function translateBandwidth() {
     case $(($1)) in
@@ -58,7 +46,7 @@ function getStatus() {
 function getAtDebugLog() { return; }
 
 function getServingCell() {
-    local DATA=$(submitCommand ~/.gateway_status 300 at+qeng=\"servingcell\")
+    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_status" 300 at+qeng=\"servingcell\")
     local RESULT=$(echo $DATA | jq -r .result | tr -d ' ')
     # echo $RESULT
     local arrIN=(${RESULT//,/ })
@@ -83,7 +71,7 @@ function getServingCell() {
 
 # submit AT command
 function getCAStatus() {
-    local DATA=$(submitCommand ~/.gateway_qcainfo $DEFAULT_CACHE_EXPIRATION_TIME AT+qcainfo)
+    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_qcainfo" $DEFAULT_CACHE_EXPIRATION_TIME AT+qcainfo)
     local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r' | tr -d ': ')
     local lines=(${RESULT//+/ })
 
@@ -117,7 +105,7 @@ function getCAStatus() {
 }
 
 function getTemperature() {
-    local DATA=$(submitCommand ~/.gateway_temperature $DEFAULT_CACHE_EXPIRATION_TIME AT+QTEMP)
+    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_temperature" $DEFAULT_CACHE_EXPIRATION_TIME AT+QTEMP)
     local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r')
     local lines=(${RESULT//+/ })
 
@@ -138,7 +126,7 @@ function getTemperature() {
 # /cgi-bin/luci/admin/modem/get_csq
 
 function getDashboard() {
-    local DATA=$(submitCommand ~/.gateway_dashboard 60)
+    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_dashboard" 60)
     echo $DATA | jq -r .result
 }
 
@@ -178,7 +166,7 @@ function rebootAll() {
 }
 
 function resetModem() {
-    sendCommand ~/.gateway_cfun 0 "AT+CFUN=1,1"
+    sendCommand "${CACHE_ROOT}/.gateway_cfun" 0 "AT+CFUN=1,1"
 }
 
 login
@@ -199,11 +187,11 @@ if [[ -n $1 ]]; then
         resetUsb
         exit 0
     fi
-    submitCommand ~/.gateway_$1 600 $1
+    submitCommand "${CACHE_ROOT}/.gateway_${1}" 600 $1
     if [[ -n $2 ]]; then
-        echo $(cat ~/.gateway_$1)
+        echo $(cat "${CACHE_ROOT}/.gateway_${1}")
     else
-        cat ~/.gateway_$1 | jq -r .result
+        cat "${CACHE_ROOT}/.gateway_${1}" | jq -r .result
     fi
 else
     assembleStandardOut
