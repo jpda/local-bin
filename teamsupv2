@@ -167,7 +167,7 @@ else # you provided a package path
 fi
 
 updateTeams
-cleanup
+#cleanup
 
 .log 6 "Finished"
 sleep 0.5

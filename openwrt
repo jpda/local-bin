@@ -1,8 +1,8 @@
 #!/bin/bash
 # for interacting with rooter
 . _env
-source "${CONFIG_ROOT}/.rooter"
-COOKIE_JAR="${CACHE_ROOT}/.router-auth.txt"
+source "${CONFIG_ROOT}/openwrt"
+COOKIE_JAR="${CACHE_ROOT}/openwrt-auth.txt"
 COOKIE_JAR_EXPIRATION_TIME=600
 DEFAULT_CACHE_EXPIRATION_TIME=600
 
@@ -46,8 +46,8 @@ function getStatus() {
 function getAtDebugLog() { return; }
 
 function getServingCell() {
-    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_status" 300 at+qeng=\"servingcell\")
-    local RESULT=$(echo $DATA | jq -r .result | tr -d ' ')
+    local DATA=$(submitCommand "${CACHE_ROOT}/openwrt_status" $DEFAULT_CACHE_EXPIRATION_TIME 'qeng=\"servingcell\"')
+    local RESULT=$(echo $DATA | jq -r .stdout | tr -d ' ')
     # echo $RESULT
     local arrIN=(${RESULT//,/ })
 
@@ -71,8 +71,8 @@ function getServingCell() {
 
 # submit AT command
 function getCAStatus() {
-    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_qcainfo" $DEFAULT_CACHE_EXPIRATION_TIME AT+qcainfo)
-    local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r' | tr -d ': ')
+    local DATA=$(submitCommand "${CACHE_ROOT}/openwrt_qcainfo" $DEFAULT_CACHE_EXPIRATION_TIME qcainfo)
+    local RESULT=$(echo $DATA | jq -r .stdout | tr -d '\n' | tr -d '\r' | tr -d ': ')
     local lines=(${RESULT//+/ })
 
     for i in "${lines[@]}"; do
@@ -105,8 +105,8 @@ function getCAStatus() {
 }
 
 function getTemperature() {
-    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_temperature" $DEFAULT_CACHE_EXPIRATION_TIME AT+QTEMP)
-    local RESULT=$(echo $DATA | jq -r .result | tr -d '\n' | tr -d '\r')
+    local DATA=$(submitCommand "${CACHE_ROOT}/openwrt_temperature" $DEFAULT_CACHE_EXPIRATION_TIME QTEMP)
+    local RESULT=$(echo $DATA | jq -r .stdout | tr -d '\n' | tr -d '\r' | tr -d "OK")
     local lines=(${RESULT//+/ })
 
     for i in "${lines[@]}"; do
@@ -114,7 +114,7 @@ function getTemperature() {
             local LINE=$(echo $i | cut -d':' -f2)
             local ITEM=$(echo $LINE | cut -d',' -f1)
             local TEMPERATURE=$(echo $LINE | cut -d',' -f2)
-            if [[ "$TEMPERATURE" == *"0"* ]]; then
+            if [[ $TEMPERATURE == *"0"* ]]; then
                 continue # skip 0s
             fi
             local DATA=$(jq -n --argjson item "$ITEM" --argjson temperature "$TEMPERATURE" '{($item): $temperature | tonumber}')
@@ -126,7 +126,7 @@ function getTemperature() {
 # /cgi-bin/luci/admin/modem/get_csq
 
 function getDashboard() {
-    local DATA=$(submitCommand "${CACHE_ROOT}/.gateway_dashboard" 60)
+    local DATA=$(submitCommand "${CACHE_ROOT}/openwrt_dashboard" 60)
     echo $DATA | jq -r .result
 }
 
@@ -136,15 +136,13 @@ function submitCommand() { # cache, cachetime, param1, param2
         return
     fi
 
-    # /cgi-bin/luci/admin/modem/send_atcmd?set=at%2Bqcainfo
-    local DATA=$(curl --get --silent --data-urlencode "set=$3" "${ROUTER_ENDPOINT}admin/modem/send_atcmd" -b $COOKIE_JAR)
+    # /admin/system/commands/run/cfg0b9944
+    local DATA=$(curl --get --silent "${ROUTER_ENDPOINT}admin/system/commands/run/cfg0b9944/${3}" -b $COOKIE_JAR)
     echo $DATA >$1
     echo $DATA
 }
 
 function assembleStandardOut() {
-    # https://tmo.jpd.ms/cgi-bin/luci/admin/modem/change_modem
-    curl --get --silent "${ROUTER_ENDPOINT}admin/modem/change_modem" -b $COOKIE_JAR
     local SERVING_CELL=$(getServingCell)
     local CA_STATUS=$(getCAStatus)
     local TEMPERATURE=$(getTemperature)
@@ -168,7 +166,7 @@ function rebootAll() {
 }
 
 function resetModem() {
-    sendCommand "${CACHE_ROOT}/.gateway_cfun" 0 "AT+CFUN=1,1"
+    sendCommand "${CACHE_ROOT}/openwrt_cfun" 0 "CFUN=1,1"
 }
 
 login
@@ -189,11 +187,11 @@ if [[ -n $1 ]]; then
         resetUsb
         exit 0
     fi
-    submitCommand "${CACHE_ROOT}/.gateway_${1}" 600 $1
+    submitCommand "${CACHE_ROOT}/openwrt_${1}" 600 $1
     if [[ -n $2 ]]; then
-        echo $(cat "${CACHE_ROOT}/.gateway_${1}")
+        echo $(cat "${CACHE_ROOT}/openwrt_${1}")
     else
-        cat "${CACHE_ROOT}/.gateway_${1}" | jq -r .result
+        cat "${CACHE_ROOT}/openwrt_${1}" | jq -r .result
     fi
 else
     assembleStandardOut
