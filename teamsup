@@ -43,7 +43,9 @@ WORK=/tmp/teams-up
 TEAMS_PKG_PATH=$WORK/Teams_osx.pkg
 FILE_TYPE=''
 PREREL_RING='ring2'
-OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+APP_FILE_NAME='Microsoft Teams classic.app'
+APP_FILE_PATH="/Applications/$APP_FILE_NAME"
+OLD_VER=$(/usr/libexec/PlistBuddy "/Applications/$APP_FILE_NAME/Contents/Info.plist" -c "print CFBundleGetInfoString")
 FORCE_INSTALL=false
 
 function stopTeams() {
@@ -51,7 +53,7 @@ function stopTeams() {
   # since we're searching for the pattern, this command will also appear, so the second grep is to ignore grep
   # i feel like there's prob a better way to do this, but a bash wizard I am not
   .log 6 "Stopping Teams"
-  ps -fe | grep "Microsoft Teams.app/Contents/MacOS/Teams" | grep -wv "grep" | awk '{print $2}' | xargs kill
+  ps -fe | grep "$APP_FILE_NAME/Contents/MacOS/Teams" | grep -wv "grep" | awk '{print $2}' | xargs kill
 }
 
 function getTeams(){
@@ -85,7 +87,7 @@ function updateTeams() {
   tar -xf $WORK/teamspkg/Teams_osx_app.pkg/Payload #>> $WORK/payload.log
   # OLD_VER=$(/usr/libexec/PlistBuddy /Applications/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
   .log 6 "Current installed version: $OLD_VER"
-  NEW_VER=$(/usr/libexec/PlistBuddy $WORK/Microsoft\ Teams.app/Contents/Info.plist -c "print CFBundleGetInfoString")
+  NEW_VER=$(/usr/libexec/PlistBuddy "$WORK/$APP_FILE_NAME/Contents/Info.plist" -c "print CFBundleGetInfoString")
   .log 6 "New version: $NEW_VER; Override: $FORCE_INSTALL"
   if version_gt $OLD_VER $NEW_VER && $FORCE_INSTALL; then
     .log 4 "No update available, installed $OLD_VER is newer than $NEW_VER"
@@ -93,12 +95,13 @@ function updateTeams() {
   fi
   
   .log 6 "Upgrading $OLD_VER --> $NEW_VER"
-  FILE_TYPE=$(file $WORK/Microsoft\ Teams.app/Contents/MacOS/Teams)
+  FILE_TYPE=$(file "$WORK/$APP_FILE_NAME/Contents/MacOS/Teams")
+  .log 6 "File type: $FILE_TYPE"
   if [[ $FILE_TYPE == *"arm64"* ]]; then
     .log 6 "This is an arm64 binary, moving to Applications."
     stopTeams
-    /bin/mv /Applications/Microsoft\ Teams.app /Applications/TeamsOld.app
-    /bin/cp -Rf ./Microsoft\ Teams.app /Applications/
+    /bin/mv "/Applications/$APP_FILE_NAME" /Applications/TeamsOld.app
+    /bin/cp -Rf "./$APP_FILE_NAME" /Applications/
     /bin/rm -rf /Applications/TeamsOld.app
   else
     .log 1 "\e[1;31m This is not an arm64 binary, teams will not be replaced. If you really want this, copy it manually."
@@ -137,4 +140,4 @@ cleanup
 
 .log 6 "Finished"
 sleep 0.5
-open /Applications/Microsoft\ Teams.app
+open "/Applications/$APP_FILE_NAME"
