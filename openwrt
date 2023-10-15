@@ -23,6 +23,7 @@ function translateBandwidth() {
     12) echo 100 ;;
     13) echo 200 ;;
     14) echo 400 ;;
+    default) echo $1 ;;
     esac
 }
 
@@ -142,6 +143,23 @@ function submitCommand() { # cache, cachetime, param1, param2
     echo $DATA
 }
 
+function fillCaches() {
+    submitCommandQuiet "${CACHE_ROOT}/openwrt_status" $DEFAULT_CACHE_EXPIRATION_TIME 'qeng=\"servingcell\"'
+    submitCommandQuiet "${CACHE_ROOT}/openwrt_qcainfo" $DEFAULT_CACHE_EXPIRATION_TIME qcainfo
+    submitCommandQuiet "${CACHE_ROOT}/openwrt_temperature" $DEFAULT_CACHE_EXPIRATION_TIME QTEMP
+}
+
+function submitCommandQuiet() {
+    if checkCache $1 $2; then
+        # echo $(cat $1)
+        return
+    fi
+
+    # /admin/system/commands/run/cfg0b9944
+    local DATA=$(curl --get --silent "${ROUTER_ENDPOINT}admin/system/commands/run/cfg0b9944/${3}" -b $COOKIE_JAR)
+    echo $DATA >$1
+}
+
 function assembleStandardOut() {
     local SERVING_CELL=$(getServingCell)
     local CA_STATUS=$(getCAStatus)
@@ -172,6 +190,10 @@ function resetModem() {
 login
 if [[ -n $1 ]]; then
     #echo "executing $1"
+    if [[ "$1" == "cache" ]]; then
+        fillCaches
+        exit 0
+    fi
     if [[ "$1" == "reboot" ]]; then
         echo "Resetting modem & rebooting router"
         rebootAll

@@ -1,0 +1,279 @@
+#!/usr/bin/env pwsh
+
+$CACHE_ROOT = "~/.local/cache/"
+
+function Read-Data {
+    param (
+        $cacheFile
+    )
+    $data = ConvertFrom-Json -InputObject (Get-Content -Path "$CACHE_ROOT/$cacheFile")
+    return $data.stdout;
+}
+
+# region ServingCell
+
+function Read-LTEInfo {
+    # +QENG: "LTE",<is_tdd>,<MCC>,<MNC>,<cellID>,<PCI D>,<earfcn>,<freq_band_ind>,<UL_bandwidth>,<DL_ban dwidth>,<TAC>,<RSRP>,<RSRQ>,<RSSI>,<SINR>,<CQI>,<tx_power>,<srxlev>
+    param (
+        $servingLine
+    )
+
+    return @{
+        CellMode    = $servingLine[0];
+        DuplexMode  = $servingLine[1];
+        MCC         = [int]$servingLine[2];
+        MNC         = [int]$servingLine[3];
+        CellID      = $servingLine[4];
+        PCID        = $servingLine[5];
+
+        EARFCN      = $servingLine[6];
+        FreqBandInd = [int]$servingLine[7];
+        ULBandwidth = [int]$servingLine[8];
+        DLBandwidth = [int]$servingLine[9];
+        TAC         = $servingLine[10];
+
+        RSRP        = [int]$servingLine[11];
+        RSRQ        = [int]$servingLine[12];
+        RSSI        = [int]$servingLine[13];
+        SINR        = [int]$servingLine[14];
+        CQI         = [int]$servingLine[15];
+        TXPower     = [int]$servingLine[16];
+        SRXLev      = $servingLine[17];
+    };
+}
+
+function Convert-Bandwidth() {
+    param ($val)
+    switch ($val) {
+        0 { return 5 }
+        1 { return 10 }
+        2 { return 15 }
+        3 { return 20 }
+        4 { return 25 }
+        5 { return 30 }
+        6 { return 40 }
+        7 { return 50 }
+        8 { return 60 }
+        9 { return 70 }
+        10 { return 80 }
+        11 { return 90 }
+        12 { return 100 }
+        13 { return 200 }
+        14 { return 400 }
+        default { return $1 }
+    }
+}
+
+function Read-SAPrimaryInfo {
+    # +QENG: "servingcell","NOCONN","NR5G-SA","TDD",       310,  260,  1073BC12F,41,    A6FC00,509790, 41,    10,               -86,   -11,   23,    1,    -  OK 
+    # +QENG: "servingcell",<state>,"NR5G-SA",<duplex_mode>,<MCC>,<MNC>,<cellID>, <PCID>,<TAC>, <ARFCN>,<band>,<NR_DL_bandwidth>,<RSRP>,<RSRQ>,<SINR>,<scs>,<srxlev>
+    param (
+        $servingLine
+    )
+
+    return @{
+        CellMode   = $servingLine[0];
+        DuplexMode = $servingLine[1];
+        MCC        = [int]$servingLine[2];
+        MNC        = [int]$servingLine[3];
+        CellID     = $servingLine[4];
+        PCID       = [int]$servingLine[5];
+
+        TAC        = $servingLine[6];
+        ARFCN      = [int]$servingLine[7];
+        Band       = [int]$servingLine[8];
+        Bandwidth  = @{
+            BandwidthMhz = Convert-Bandwidth([int]$servingLine[9]);
+            DLBandwidth  = [int]$servingLine[9];
+        }
+        RSRP       = [int]$servingLine[10];
+        SINR       = [int]$servingLine[11];
+        RSRQ       = [int]$servingLine[12];
+        SCS        = [int]$servingLine[13];
+        SRXLev     = $servingLine[14];
+    };
+}
+
+function Read-NSASecondaryInfo {
+    # +QENG: "NR5G-NSA",<MCC>,<MNC>,<PCID>,<RSRP>,<SINR>,<RSRQ>,<ARFCN>,<band>,<NR_DL_bandwidth>,<scs>
+    param (
+        $servingLine
+    )
+
+    return @{
+        CellMode    = $servingLine[0];
+        MCC         = [int]$servingLine[1];
+        MNC         = [int]$servingLine[2];
+        PCID        = [int]$servingLine[3];
+        RSRP        = [int]$servingLine[4];
+        SINR        = [int]$servingLine[5];
+        RSRQ        = [int]$servingLine[6];
+        ARFCN       = [int]$servingLine[7];
+        Band        = [int]$servingLine[8];
+        DLBandwidth = [int]$servingLine[9];
+        SCS         = [int]$servingLine[10];
+    }
+}
+
+function Read-ServingCell {
+    # +QENG: "servingcell",<state>,"NR5G-SA",<duplex_mode>,<MCC>,<MNC>,<cellID>,<PCID>,<TAC>,<ARFCN>,<ba nd>,<NR_DL_bandwidth>,<RSRP>,<RSRQ>,<SINR>,<sc s>,<srxlev>
+    $statusInfo = $(Read-Data -cacheFile "openwrt_status") -split "\n"
+    $statusLines = $statusInfo -split "\+QENG:\s*"
+    $statusLines = @($statusLines | Where-Object {
+        ($_.Length -gt 0) -and 
+        (!$_.StartsWith("OK")) -and 
+        (!$_.StartsWith("ERROR")) -and 
+        (!$_.StartsWith("servingcell"))
+        })
+
+    # EN-DC mode
+    if ($statusLines[0].Split(',').Length -eq 2) {
+        $mode = "EN-DC";
+        $qengPrefix = $statusLines[0];
+        $statusLines[0] = $qengPrefix + "," + "EN-DC"
+    }
+
+    $mode = $statusLines[0].Split(',')[2].Replace('"', '');
+    
+    $cells = @();
+    $cells = foreach ($l in $statusLines) {
+        $line = $l.Split(',') | ForEach-Object { $_.Replace('"', '') } | Select-Object -skip 2 ;
+        switch ($line[0]) {
+            "LTE" {
+                Read-LTEInfo -servingLine $line;
+            }
+            "NR5G-NSA" {
+                Read-NSASecondaryInfo -servingLine $line;
+            }
+            "NR5G-SA" {
+                Read-SAPrimaryInfo -servingLine $line;
+            }
+        }
+    }
+
+    $signalInfo = @{
+        Mode  = $mode;
+        Cells = $cells;
+    }
+
+    return $signalInfo;
+    
+    # EN-DC:   0             1
+    #   +QENG: "servingcell",<state>
+    #          0     1        2     3     4        5       6        7               8              9               10    11     12     13     14     15    16         17 
+    #   +QENG: "LTE",<is_tdd>,<MCC>,<MNC>,<cellID>,<PCI D>,<earfcn>,<freq_band_ind>,<UL_bandwidth>,<DL_ban dwidth>,<TAC>,<RSRP>,<RSRQ>,<RSSI>,<SINR>,<CQI>,<tx_power>,<srxlev>
+    #          0          1     2     3      4      5      6      7       8      9                 10
+    #   +QENG: "NR5G-NSA",<MCC>,<MNC>,<PCID>,<RSRP>,<SINR>,<RSRQ>,<ARFCN>,<band>,<NR_DL_bandwidth>,<scs>
+
+    # SA:  +QENG: "servingcell",<state>,"NR5G-SA",<duplex_mode>,<MCC>,<MNC>,<cellID>,<PCID>,<TAC>,<ARFCN>,<band>,<NR_DL_bandwidth>,<RSRP>,<RSRQ>,<SINR>,<scs>,<srxlev>
+    # LTE: +QENG: "servingcell",<state>,"LTE",<is_tdd>,<MCC>,< MNC>,<cellID>,<PCID>,<earfcn>,<freq_band_ind>,<UL_b andwidth>,<DL_bandwidth>,<TAC>,<RSRP>,<RSRQ>,<R SSI>,<SINR>,<CQI>,<tx_power>,<srxlev>
+}
+
+# endregion
+
+function Read-QcaInfo {
+    # +QCAINFO: "PCC",509790,10,"NR5G BAND 41",41
+    # +QCAINFO: "SCC",396970,3,"NR5G BAND 25",1,23,0,-,-
+
+    #+QCAINFO: "PCC",<freq>,<bandwidth>,<band>,<pcell_state>,<PCID>,<RSRP>,<RSRQ>,<RSSI>,<SINR>
+    #+QCAINFO: "SCC",<freq>,<bandwidth>,<band>,<scell_state>,<PCID>,<RSRP>,<RSRQ>,<RSSI>,<SINR>
+
+    $statusInfo = $(Read-Data -cacheFile "openwrt_qcainfo") -split "\n"
+    $statusLines = $statusInfo -split "\+QCAINFO:\s*"
+    $statusLines = @($statusLines | Where-Object {
+        ($_.Length -gt 0) -and 
+        (!$_.StartsWith("OK")) -and 
+        (!$_.StartsWith("ERROR")) -and 
+        (!$_.StartsWith("servingcell"))
+        })
+
+    $cells = @();
+    $cells = foreach ($l in $statusLines) {
+        $line = $l.Split(',') | ForEach-Object { $_.Replace('"', '') };
+        @{
+            CellMode  = $line[0];
+            Freq      = [int]$line[1];
+            Bandwidth = ConvertTo-Int($line[2]);
+            Band      = $line[3];
+            PCID      = ConvertTo-Int($line[4]);
+            RSRP      = ConvertTo-Int($line[5]);
+            RSRQ      = ConvertTo-Int($line[6]);
+            RSSI      = ConvertTo-Int($line[7]);
+            SINR      = ConvertTo-Int($line[8]);
+        };
+    }
+
+    return $cells;
+}
+
+function Read-Temperatures {
+    # see https://forums.quectel.com/t/rg500q-at-qtemp-values/10796
+    # and RMx series AT commands manual
+    # +QTEMP:"modem-lte-sub6-pa1","28" // power amplifier? 
+    # +QTEMP:"modem-sdr0-pa0","0"
+    # +QTEMP:"modem-sdr0-pa1","0"
+    # +QTEMP:"modem-sdr0-pa2","0"
+    # +QTEMP:"modem-sdr1-pa0","0"
+    # +QTEMP:"modem-sdr1-pa1","0"
+    # +QTEMP:"modem-sdr1-pa2","0"
+    # +QTEMP:"modem-mmw0","0"
+    # +QTEMP:"aoss-0-usr","31" // always on subsystem
+    # +QTEMP:"cpuss-0-usr","31" // cpu
+    # +QTEMP:"mdmq6-0-usr","31" // DSP? 
+    # +QTEMP:"mdmss-0-usr","31" // modem subsystem? 
+    # +QTEMP:"mdmss-1-usr","31" // modem subsystem?
+    # +QTEMP:"mdmss-2-usr","31" // modem subsystem?
+    # +QTEMP:"mdmss-3-usr","30" // modem subsystem?
+    # +QTEMP:"modem-lte-sub6-pa2","28" // power amplifier?
+    # +QTEMP:"modem-ambient-usr","29" // assuming ambient temperature
+
+    $statusInfo = $(Read-Data -cacheFile "openwrt_temperature") -split "\n"
+    $statusLines = $statusInfo -split "\+QTEMP:\s*"
+    $statusLines = @($statusLines | Where-Object {
+        ($_.Length -gt 0) -and 
+        (!$_.StartsWith("OK")) -and 
+        (!$_.StartsWith("ERROR")) -and 
+        (!$_.StartsWith("servingcell"))
+        })
+
+    # Initialize an empty hashtable to store the data
+    $data = @{}
+
+    # Loop through the lines
+    foreach ($line in $statusLines) {
+        $item, $temperature = $line -split "," | Select-Object -Index 0, 1 | ForEach-Object { $_.Replace('"', '') }
+        # Skip 0s
+        if ($temperature -eq "0") {
+            continue
+        }
+        # Convert the temperature to a number and store it in the hashtable with the item as the key
+        $data[$item] = ConvertTo-Int($temperature)
+    }
+
+    return $data;
+}
+
+function ConvertTo-Int {
+    param ($val)
+    $outVal = 0;
+    if (![int]::TryParse($val, [ref]$outVal)) { return $val; }
+    return $outVal;
+}
+
+function Sync-Cache {
+    openwrt cache
+}  
+
+function Go {
+    Sync-Cache
+
+    $cellData = @{
+        servingCell  = Read-ServingCell;
+        caInfo       = Read-QcaInfo;
+        temperatures = Read-Temperatures;
+    };
+
+    ConvertTo-Json $cellData -Depth 10 -Compress
+}
+
+Go
