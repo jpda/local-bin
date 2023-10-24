@@ -101,17 +101,20 @@ function Read-NSASecondaryInfo {
     )
 
     return @{
-        CellMode    = $servingLine[0];
-        MCC         = [int]$servingLine[1];
-        MNC         = [int]$servingLine[2];
-        PCID        = [int]$servingLine[3];
-        RSRP        = [int]$servingLine[4];
-        SINR        = [int]$servingLine[5];
-        RSRQ        = [int]$servingLine[6];
-        ARFCN       = [int]$servingLine[7];
-        Band        = [int]$servingLine[8];
-        DLBandwidth = [int]$servingLine[9];
-        SCS         = [int]$servingLine[10];
+        CellMode  = $servingLine[0];
+        MCC       = [int]$servingLine[1];
+        MNC       = [int]$servingLine[2];
+        PCID      = [int]$servingLine[3];
+        RSRP      = [int]$servingLine[4];
+        SINR      = [int]$servingLine[5];
+        RSRQ      = [int]$servingLine[6];
+        ARFCN     = [int]$servingLine[7];
+        Band      = [int]$servingLine[8];
+        Bandwidth = @{
+            BandwidthMhz = Convert-Bandwidth([int]$servingLine[9]);
+            DLBandwidth  = [int]$servingLine[9];
+        }
+        SCS       = [int]$servingLine[10];
     }
 }
 
@@ -153,7 +156,7 @@ function Read-ServingCell {
 
     $signalInfo = @{
         Mode  = $mode;
-        Cells = $cells;
+        Cells = [Array]$cells;
     }
 
     return $signalInfo;
@@ -193,7 +196,11 @@ function Read-QcaInfo {
         @{
             CellMode  = $line[0];
             Freq      = [int]$line[1];
-            Bandwidth = ConvertTo-Int($line[2]);
+            # Bandwidth = ConvertTo-Int($line[2]);
+            Bandwidth = @{
+                BandwidthMhz = Convert-Bandwidth(ConvertTo-Int($line[2]));
+                DLBandwidth  = ConvertTo-Int($line[2]);
+            };
             Band      = $line[3];
             PCID      = ConvertTo-Int($line[4]);
             RSRP      = ConvertTo-Int($line[5]);
@@ -203,7 +210,25 @@ function Read-QcaInfo {
         };
     }
 
-    return [array]$cells;
+    return [Array]$cells;
+}
+
+function Copy-ServingCellToCA {
+    param (
+        $servingCell,
+        $caInfo
+    )
+    
+    $servingCellFreq = $servingCell.Cells[0].ARFCN;
+    $caInfoCell = $caInfo | Where-Object { $_.Freq -eq $servingCellFreq };
+
+    if ($null -ne $caInfoCell) {
+        $caInfoCell.RSRP = $servingCell.Cells[0].RSRP;
+        $caInfoCell.RSRQ = $servingCell.Cells[0].RSRQ;
+        $caInfoCell.RSSI = $servingCell.Cells[0].RSSI;
+        $caInfoCell.SINR = $servingCell.Cells[0].SINR;
+    }
+    return $caInfo;
 }
 
 function Read-Temperatures {
@@ -279,6 +304,7 @@ function Go {
         temperatures = Read-Temperatures;
     };
 
+    $cellData.caInfo = Copy-ServingCellToCA -servingCell $cellData.servingCell -caInfo $cellData.caInfo;    
     ConvertTo-Json $cellData -Depth 10 -Compress
 }
 
