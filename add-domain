@@ -1,0 +1,13 @@
+source ~/.local/etc/cf_zone
+
+function addDomain() {
+  echo $IDENTIFIER
+  local domain=$1
+  printf "Adding ${domain}:\n"
+  curl -s -X POST https://api.cloudflare.com/client/v4/zones \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer ${CFTOKEN}" \
+    --data '{"account": {"id":"'"${IDENTIFIER}"'"},"name":"'"$domain"'","type":"full"}' \
+ | jq
+}
+addDomain $1
