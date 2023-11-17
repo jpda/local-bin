@@ -97,7 +97,7 @@ function stopTeams() {
   # since we're searching for the pattern, this command will also appear, so the second grep is to ignore grep
   # i feel like there's prob a better way to do this, but a bash wizard I am not
   .log 6 "Stopping Teams"
-  ps -fe | grep "${APP_PATH}/Contents/MacOS/${APP_NAME}" | grep -wv "grep" | awk '{print $2}' | xargs kill
+  ps -fe | grep "${APP_PATH}/Contents/MacOS/MSTeams" | grep -wv "grep" | awk '{print $2}' | xargs kill
 }
 
 function getTeams() {
@@ -161,7 +161,6 @@ function updateTeams() {
   fi
 
   .log 6 "Upgrading $OLD_VER --> $NEW_VER"
-  # .log 6 $WORK/$APP_PKG_NAME
   FILE_TYPE=$(file "$(find "${TEAMS_PKG_APP_ROOT}/Contents/MacOS/" -maxdepth 1 -type f)")
   if [[ $FILE_TYPE == *"arm64"* ]]; then
     .log 6 "This is an arm64 binary, moving to Applications."
