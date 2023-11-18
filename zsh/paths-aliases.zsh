@@ -9,3 +9,5 @@ alias la='ls -a'
 alias lla='ls -la'
 alias lt='ls --tree'
 alias today='icalBuddy -f -iep "title,datetime" -po "datetime,title" -df "%RD" eventsToday'
+
+alias refreshOfficeTemplates='cp -r $OneDriveConsumer/Documents/Custom\ Office\ Templates/ ~/Library/Group\ Containers/UBF8T346G9.Office/User\ Content.localized/Templates.localized'
