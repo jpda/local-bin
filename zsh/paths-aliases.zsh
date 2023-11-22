@@ -12,3 +12,4 @@ alias events='icalBuddy -ea -f -iep "title,datetime" -po "datetime,title" -df "%
 alias today='events -n eventsToday'
 alias upnext='events -n -li 1 eventsToday'
 alias tomorrow='events eventsFrom:"tomorrow" to:"tomorrow"'
+alias refreshOfficeTemplates='cp -r $OneDriveConsumer/Documents/Custom\ Office\ Templates/ ~/Library/Group\ Containers/UBF8T346G9.Office/User\ Content.localized/Templates.localized'
