@@ -85,7 +85,7 @@ function parse_condition() {
 
     if [[ $condition == *"PartlyCloudy"* ]] ;
         # then symbol="\uE302" ;
-        then symbol="\udb81\udd95" ;
+        then symbol="\uE37B" ;
     fi	
 
     if [[ $condition == *"Snow"* ]] ;
