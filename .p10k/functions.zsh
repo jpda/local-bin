@@ -24,46 +24,35 @@ function prompt_conditions() {
 
     integer precipChance=$((rint($precipProb*100))) ;
 
-    local temp=$(echo $(~/.local/bin/temp))
-    local bg=$(parse_temp $temp)
+    local t1=$(echo $(~/.local/bin/temp))
+    local bg=$(parse_temp $t1)
     local symbol=$(parse_condition $condition)
     local sym=$(echo -n "$symbol")
-    local val=$(echo -n "$temp\uE33EF $precipChance%%")
+    local val=$(echo -n "$t1\uE33EF $precipChance%%")
     p10k segment -b $bg -f $bg -i $sym -t "$val";  
 }
 
 function parse_temp() {
     local bg=196
-    local color=0
-    local temp=$1
-
-    if [[ $temp -gt 30 && $temp -le 40 ]] ;
-        then bg=032 ; color=0 ;
-    fi
-
-    if [[ $temp -gt 40 && $temp -le 50 ]] ;
-        then bg=044 ; color=0 ;
-    fi
-
-    if [[ $temp -gt 50 && $temp -le 60 ]] ;
-        then bg=056 ; color=255 ;
-    fi
-
-    if [[ $temp -gt 60 && $temp -le 70 ]] ;
-        then bg=068 ; color=0 ;
-    fi
-
-    if [[ $temp -gt 70 && $temp -le 80 ]] ;
-        then bg=082 ; color=0 ;
-    fi
-
-    if [[ $temp -gt 80 && $temp -le 90 ]] ;
-        then bg=214 ; color=0 ;
-    fi
-
-    if [[ $temp -gt 90 ]] ;
-        then bg=196 ; color=0 ;
-    fi
+    local temp=$(($1|0))
+    
+    if [[ $temp -le 30 ]];
+        then bg=021
+    elif [[ $temp -gt 30 && $temp -le 40 ]];
+        then bg=032
+    elif [[ $temp -gt 40 && $temp -le 50 ]];
+        then bg=044
+    elif [[ $temp -gt 50 && $temp -le 60 ]];
+        then bg=056
+    elif [[ $temp -gt 60 && $temp -le 70 ]];
+        then bg=068
+    elif [[ $temp -gt 70 && $temp -le 80 ]];
+        then bg=082
+    elif [[ $temp -gt 80 && $temp -le 90 ]];
+        then bg=214
+    elif [[ $temp -gt 90 ]];
+        then bg=196
+    fi 
     echo $bg
 }
 
