@@ -32,6 +32,12 @@ function prompt_conditions() {
     p10k segment -b $bg -f $bg -i $sym -t "$val";  
 }
 
+function prompt_temperature() {
+    local temp=$(echo $(~/.local/bin/temp))
+    local bg=$(parse_temp $temp)
+    p10k segment -b $bg -f $bg -t "$temp";  
+}
+
 function parse_temp() {
     local bg=196
     local color=0
