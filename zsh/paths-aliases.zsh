@@ -4,6 +4,7 @@ export PATH="$PATH:$HOME/.local/platform-tools"
 
 pwd_alias() { echo "$PWD"; }
 loadenv() { source $(pwd_alias)/**/*.Development.env; }
+hash() { printf $1 | openssl sha256 -binary | base64 ; }
 
 command -v lsd &>/dev/null && alias ls='lsd --group-dirs first'
 command -v gotop &>/dev/null && alias top='gotop -p'
@@ -21,3 +22,4 @@ alias workenv="cd $WORK_ROOT && loadenv"
 alias isworkenv="cd $OIS_ROOT && loadenv"
 alias runis='isworkenv && dotnet run -c Release'
 alias hostis='ngrok --config $HOME/.local/etc/ngrok.yml,$OIS_ROOT/ngrok.yml start ois'
+
