@@ -1,6 +1,7 @@
 # /bin/zsh
 export PATH="$PATH:$HOME/.dotnet/tools:$HOME/.local/bin:$HOME/Library/Python/3.10/bin"
 export PATH="$PATH:$HOME/.local/platform-tools"
+export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
 
 pwd_alias() { echo "$PWD"; }
 loadenv() { source $(pwd_alias)/**/*.Development.env; }
