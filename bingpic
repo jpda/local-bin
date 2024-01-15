@@ -6,7 +6,7 @@ getBingPicture() {
   local INDEX=0;
   mkdir -p $SAVE_DIR;
 
-  getLatestBingPhotos 1;
+  getLatestBingPhotos $1;
 
   # only keep the latest 7 files
   local FILES=$(ls -t $SAVE_DIR | tail -n +8);
@@ -66,4 +66,17 @@ setWallpaper() {
   echo "=== BingPaper finished at $(date) ==="
 }
 
-getBingPicture
+if [ "$1" == "set" ]; then
+  setWallpaper $2;
+elif [ "$1" == "get" ]; then
+  getBingPicture $2;
+elif [ "$1" == "getAndSet" ]; then
+  getAndSetBingPicAsWallpaper;
+fi
+
+# if no value is passed, default to 1, otherwise use the value passed
+if [ -z "$1" ]; then
+  getBingPicture 1;
+else
+  getBingPicture $1;
+fi
