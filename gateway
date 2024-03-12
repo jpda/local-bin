@@ -1,3 +1,5 @@
+#!/bin/bash
+
 endpoint='http://192.168.12.1'
 if [ $# -gt 0 ]; then endpoint=$1; fi;
 # echo "connecting to $endpoint"
@@ -6,4 +8,17 @@ auth_payload=$(echo '{"username": "admin", "password": ""}' | jq -c ".password =
 url="$endpoint/TMI/v1/auth/login";
 
 token=$(curl -s -d "${auth_payload}" "$endpoint/TMI/v1/auth/login" | jq -r ".auth.token");
-echo $token;
+#echo $token;
+
+echo $(curl -s -H "Authorization: Bearer $token" 'http://192.168.12.1/TMI/v1/network/telemetry/?get=cell' | jq '.cell."5g" | {bandwidth, rsrp: .sector.rsrp, rsrq: .sector.rsrq, sinr: .sector.sinr, rssi: .sector.rssi, bands: .sector.bands | join(",")}')
+# curl -s -H "Authorization: Bearer $(gateway)" 'http://192.168.12.1/TMI/v1/network/telemetry/?get=cell' | jq '.cell."5g" | {bandwidth, rsrp: .sector.rsrp, rsrq: .sector.rsrq, sinr: .sector.sinr, rssi: .sector.rssi, bands: .sector.bands | join(",")}'
+
+# val gatewayInfo = Endpoint.CommonApiEndpoint("gateway/?get=all")
+#        val getWifiConfig = Endpoint.CommonApiEndpoint("network/configuration/v2?get=ap")
+#        val setWifiConfig = Endpoint.CommonApiEndpoint("network/configuration/v2?set=ap")
+#        val getDevices = Endpoint.CommonApiEndpoint("network/telemetry/?get=clients")
+#        val getCellInfo = Endpoint.CommonApiEndpoint("network/telemetry/?get=cell")
+#        val getSimInfo = Endpoint.CommonApiEndpoint("network/telemetry/?get=sim")
+#        val reboot = Endpoint.CommonApiEndpoint("gateway/reset?set=reboot")
+#        val auth = Endpoint.CommonApiEndpoint("auth/login")
+#        val reset = Endpoint.CommonApiEndpoint("auth/admin/reset")
