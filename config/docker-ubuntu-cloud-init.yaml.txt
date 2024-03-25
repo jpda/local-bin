@@ -16,6 +16,12 @@ packages:
   - docker-ce
   - docker-ce-cli
   - containerd.io
+  - docker-compose-plugin
+
+runcmd:
+  - curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  - az login --identity
+  - az acr login --name jpdaossdev
 
 write_files:
   - path: /etc/sysctl.d/enabled_ipv4_forwarding.conf
