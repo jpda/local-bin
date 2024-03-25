@@ -23,7 +23,7 @@
   unset -m '(POWERLEVEL9K_*|DEFAULT_USER)~POWERLEVEL9K_GITSTATUS_DIR'
   autoload -Uz is-at-least && is-at-least 5.1 || return
   typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(time context dir vcs prompt_char)
-  typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time background_jobs direnv virtualenv anaconda pyenv goenv nodeenv nvm nodeenv dotnet_version rbenv rvm fvm luaenv jenv plenv kubecontext terraform aws azure gcloud load conditions) # pm25in pm25out)
+  typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time background_jobs direnv virtualenv anaconda pyenv goenv nodeenv nvm nodeenv dotnet_version rbenv rvm fvm luaenv jenv plenv kubecontext terraform aws azure gcloud load) # conditions) # pm25in pm25out)
   typeset -g POWERLEVEL9K_MODE=nerdfont-complete
   typeset -g POWERLEVEL9K_ICON_PADDING=none
   typeset -g POWERLEVEL9K_BACKGROUND=                            # transparent background
