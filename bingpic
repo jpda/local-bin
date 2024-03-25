@@ -7,6 +7,7 @@ getBingPicture() {
   mkdir -p $SAVE_DIR;
 
   getLatestBingPhotos $1;
+  getLatestBingPhotos $1;
 
   # only keep the latest 7 files
   local FILES=$(ls -t $SAVE_DIR | tail -n +8);
@@ -21,8 +22,8 @@ getLatestBingPhotos() {
 
   #  jq -r ".images[] | [.startdate, .urlbase] | @tsv" | while IFS=$'\t' read -r date path ; do echo $date $path ; done ;
   local IMAGE_DATA=$(curl -s https://www.bing.com/HPImageArchive.aspx\?format\=js\&n\=$1);
-  
-  echo $IMAGE_DATA | jq -r ".images[] | [.startdate, .urlbase] | @tsv" | 
+
+  echo $IMAGE_DATA | jq -r ".images[] | [.startdate, .urlbase] | @tsv" |
     while IFS=$'\t' read -r IMGDATE URLBASE ; do
       local PATHNAME="${URLBASE}_UHD.jpg";
       echo " Fetching $PATHNAME";

@@ -40,7 +40,8 @@ function prompt_temperature() {
 
 function parse_temp() {
     local bg=196
-    local temp=$(($1|0))
+    local defaultTemp=${1:=72}
+    local temp=$(($defaultTemp|0))
     
     if [[ $temp -le 30 ]];
         then bg=021
