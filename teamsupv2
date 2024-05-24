@@ -45,7 +45,7 @@ TEAMS_PAYLOAD_DIR=$WORK/teamspkg
 FILE_TYPE=''
 PREREL_RING='ring2'
 PREREL=false
-APP_NAME="Microsoft Teams (work or school)"
+APP_NAME="Microsoft Teams"
 APP_FILE_NAME="${APP_NAME}.app"
 APP_PATH="/Applications/${APP_NAME}.app"
 APP_PKG_NAME="MicrosoftTeams_app.pkg"
@@ -113,7 +113,7 @@ function getTeamsPrerel() {
   # if you aren't entitled to these, or don't know what they are, probably shouldn't use them
   # https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=ring2&teamsRing=ring2&agent=TeamsBuilds
   # the ring-URL logic here is too simple and doesn't work for some rings because other parts of the url are different
-  BUILD_INFO=$(curl -s "https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=$PREREL_RING&teamsRing=$PREREL_RING&agent=TeamsBuilds" | jq -r .BuildSettings.WebView2.macOS)
+  BUILD_INFO=$(curl -s "https://config.teams.microsoft.com/config/v1/MicrosoftTeams/1415_1.0.0.0?environment=prod&audienceGroup=$PREREL_RING&teamsRing=$PREREL_RING&agent=TeamsBuilds" | jq -r .BuildSettings.WebView2Canary.macOS)
   TEAMS_VER=$(echo $BUILD_INFO | jq -r .latestVersion)
   BUILD_LINK=$(echo $BUILD_INFO | jq -r .buildLink)
   .log 6 "Currently installed version is $OLD_VER; latest $PREREL_RING is $TEAMS_VER; Force install is $FORCE_INSTALL"
