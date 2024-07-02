@@ -1,11 +1,11 @@
 @font-face {
-  font-family: "Segoe UI";
+  font-family: "Segoe UI", "Tahoma";
   src: local(-apple-system);
 }
 
 @font-face {
-  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, Consolas, monospace;
-  src: local('Berkeley Mono Regular'), ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, Consolas, "Courier New", "Andale Mono", "Lucida Console", monospace;
+  src: local('Berkeley Mono Regular'), ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, Consolas, "Courier New", "Andale Mono", "Lucida Console", monospace;
 }
 
 html,
