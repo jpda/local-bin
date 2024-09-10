@@ -1,18 +1,103 @@
-#!/bin/bash
+#!/usr/bin/env bash
 . _env
 source "${CONFIG_ROOT}/tmogateway.env"
 
-endpoint='http://192.168.12.1'
-if [ $# -gt 0 ]; then endpoint=$1; fi;
-# echo "connecting to $endpoint"
-admin_pass=$GATEWAY_ADMIN_PASSWORD
-auth_payload=$(echo '{"username": "admin", "password": ""}' | jq -c ".password = \"${admin_pass}\"");
-url="$endpoint/TMI/v1/auth/login";
+POSITIONAL_ARGS=()
 
-token=$(curl -s -d "${auth_payload}" "$endpoint/TMI/v1/auth/login" | jq -r ".auth.token");
-#echo $token;
+ENDPOINT="http://192.168.12.1"
+API_ROOT='TMI/v1'
+API_ROOT_URL="$ENDPOINT/$API_ROOT"
+API_PATH='network/telemetry/?get=cell'
+PARSE_EXPRESSION='.cell."5g" | {bandwidth, rsrp: .sector.rsrp, rsrq: .sector.rsrq, sinr: .sector.sinr, rssi: .sector.rssi, bands: .sector.bands | join(",")}'
+GET_TOKEN=false
+SHOW_ALL=false
+SHOW_5G=false
+TOKEN=""
 
-echo $(curl -s -H "Authorization: Bearer $token" 'http://192.168.12.1/TMI/v1/network/telemetry/?get=cell' | jq '.cell."5g" | {bandwidth, rsrp: .sector.rsrp, rsrq: .sector.rsrq, sinr: .sector.sinr, rssi: .sector.rssi, bands: .sector.bands | join(",")}')
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    -t | --token)
+        GET_TOKEN=true
+        shift # past argument
+        ;;
+    -a | --show-all)
+        SHOW_ALL=true
+        shift # past argument
+        ;;
+    -5g | --show-5g)
+        SHOW_5G=true
+        shift # past argument
+        ;;
+    -e | --endpoint)
+        ENDPOINT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    -p | --path)
+        API_PATH="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --dirty)
+        CLEANUP=false
+        shift # past argument
+        ;;
+    -* | --*)
+        echo "Unknown option $1"
+        exit 1
+        ;;
+    *)
+        POSITIONAL_ARGS+=("$1") # save positional arg
+        shift                   # past argument
+        ;;
+    esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+function getAuthToken() {
+    # check if $TOKEN is set
+    if [ -n "$TOKEN" ]; then
+        echo $TOKEN
+        return
+    fi
+
+    local auth_payload=$(echo '{"username": "admin", "password": ""}' | jq -c ".password = \"${GATEWAY_ADMIN_PASSWORD}\"")
+    local url="$API_ROOT_URL/auth/login"
+    TOKEN=$(curl -s -d "${auth_payload}" $url | jq -r ".auth.token")
+    echo $TOKEN
+}
+
+function callUrl() {
+    local url=$1
+    local token=$(getAuthToken)
+    echo $(curl -s -H "Authorization: Bearer $token" $url)
+}
+
+function getCellInfo() {
+    #echo $(curl -s -H "Authorization: Bearer $token" "${API_ROOT_URL}/${PATH}" | jq '.cell."5g" | {bandwidth, rsrp: .sector.rsrp, rsrq: .sector.rsrq, sinr: .sector.sinr, rssi: .sector.rssi, bands: .sector.bands | join(",")}')
+    echo $(callUrl "${API_ROOT_URL}/${API_PATH}" | jq "${PARSE_EXPRESSION}")
+}
+
+if ($GET_TOKEN); then
+    getAuthToken
+    exit 0;
+fi
+
+if ($SHOW_ALL); then
+    PARSE_EXPRESSION="."
+    getCellInfo
+    exit 0;
+fi
+
+if ($SHOW_5G); then
+    getCellInfo
+    exit 0;
+fi
+
+getCellInfo
+
+#echo $(curl -s -H "Authorization: Bearer $token" 'http://192.168.12.1/TMI/v1/network/telemetry/?get=cell' | jq '.cell."5g" | {bandwidth, rsrp: .sector.rsrp, rsrq: .sector.rsrq, sinr: .sector.sinr, rssi: .sector.rssi, bands: .sector.bands | join(",")}')
 # curl -s -H "Authorization: Bearer $(gateway)" 'http://192.168.12.1/TMI/v1/network/telemetry/?get=cell' | jq '.cell."5g" | {bandwidth, rsrp: .sector.rsrp, rsrq: .sector.rsrq, sinr: .sector.sinr, rssi: .sector.rssi, bands: .sector.bands | join(",")}'
 
 # val gatewayInfo = Endpoint.CommonApiEndpoint("gateway/?get=all")
