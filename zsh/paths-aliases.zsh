@@ -1,4 +1,5 @@
 # /bin/zsh
+export PATH="/opt/homebrew/bin:$PATH"
 export PATH="$PATH:$HOME/.dotnet/tools:$HOME/.local/bin:$HOME/Library/Python/3.10/bin:$HOME/Library/Python/3.9/bin"
 export PATH="$PATH:$HOME/.local/platform-tools"
 export PATH="/opt/homebrew/opt/node@20/bin:$PATH"

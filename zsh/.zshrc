@@ -4,6 +4,12 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 plugins=(git zsh-autosuggestions zsh-syntax-highlighting macos kubectl)
 source $ZSH/oh-my-zsh.sh
 
+# Load normal adding
+if [[ -d ~/.local/bin/zsh ]] then ;
+	for f in ~/.local/bin/zsh/*.zsh; do
+		source $f
+	done
+fi
 [[ ! -f ~/.local/bin/.p10k/.p10k.zsh ]] || source ~/.local/bin/.p10k/.p10k.zsh
 
 # Load p10k prompt addons
