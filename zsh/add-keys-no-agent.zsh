@@ -4,7 +4,7 @@
 # Which can be set in Windows Settings -> System -> About -> Advanced System Settings -> Environment Variables
 # Add one for WSLENV=ONEDRIVECONSUMER/p
 
-if [[ $OneDriveConsumer -eq "" && $(uname -s) -eq "Darwin" ]]; then
+if [[ -z "$OneDriveConsumer" && "$(uname -s)" == "Darwin" ]]; then
     OneDriveConsumer=/Volumes/Macintosh\ HD/Users/jpd/OneDrive
     export ONEDRIVECONSUMER=/Volumes/Macintosh\ HD/Users/jpd/OneDrive
 fi
