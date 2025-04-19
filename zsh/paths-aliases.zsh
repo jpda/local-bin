@@ -8,6 +8,9 @@ pwd_alias() { echo "$PWD"; }
 loadenv() { source $(pwd_alias)/**/*.Development.env; }
 loadconfigenv() { source $CONFIG_ROOT/*.env; }
 hash() { printf $1 | openssl sha256 -binary | base64 ; }
+secret() {
+    echo -n "$1" | sha256sum | awk '{print $1}' | xxd -r -p | base64
+}
 
 command -v lsd &>/dev/null && alias ls='lsd --group-dirs first'
 command -v gotop &>/dev/null && alias top='gotop -p'
