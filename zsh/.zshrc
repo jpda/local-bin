@@ -7,15 +7,15 @@ source $ZSH/oh-my-zsh.sh
 # Load normal adding
 if [[ -d ~/.local/bin/zsh ]] then ;
 	for f in ~/.local/bin/zsh/*.zsh; do
-		source $f
+		source $f;
 	done
 fi
 
 [[ ! -f ~/.local/bin/.p10k/.p10k.zsh ]] || source ~/.local/bin/.p10k/.p10k.zsh
 
 # Load p10k prompt addons
-if [[ -d ~/.local/bin/.p10k ]] then ;
-	for f in ~/.local/bin/.p10k/*.zsh; do
+if [[ -d ~/.local/bin/.p10k/extras ]] then ;
+	for f in ~/.local/bin/.p10k/extras/*.zsh; do
 		source $f
 	done
 fi
