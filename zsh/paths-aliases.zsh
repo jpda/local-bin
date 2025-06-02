@@ -29,3 +29,5 @@ alias isworkenv="cd $OIS_ROOT && loadenv"
 alias runis='isworkenv && dotnet run -c Release'
 alias hostis='ngrok --config $HOME/.local/etc/ngrok.yml,$OIS_ROOT/ngrok.yml start ois'
 alias buildvm="$HOME/.local/bin/azbuildvm && loadconfigenv"
+
+alias cleandotnet='find . -type d \( -name "obj" -o -name "bin" \) -exec rm -rf {} +'
