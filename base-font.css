@@ -1,14 +1,25 @@
-@font-face {
-  font-family: "Segoe UI", "Tahoma";
-  src: local(-apple-system);
-}
-
-@font-face {
-  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, Consolas, "Courier New", "Andale Mono", "Lucida Console", monospace;
-  src: local('Berkeley Mono Regular'), ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, Consolas, "Courier New", "Andale Mono", "Lucida Console", monospace;
+:root {
+  --fontStack-monospace: ui-monospace !important;
 }
 
 html,
 body {
-  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+pre,
+code,
+kbd,
+samp {
+  font-family: var(--fontStack-monospace) !important;
+}
+
+@font-face {
+  font-family: "Segoe UI", SegoeUI, "Tahoma";
+  src: local(-apple-system);
+}
+
+@font-face {
+  font-family: ui-monospace, monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", "Roboto Mono", Menlo, Monaco, Consolas, "Courier New", "Andale Mono", "Lucida Console" !important;
+  src: local('Terminess Nerd Font'), local('TerminessNF'), local('BerkeleyMonoNerdFontComplete-Regular') local('BerkeleyMono Nerd Font'), ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, Consolas, "Courier New", "Andale Mono", "Lucida Console", monospace !important;
 }
