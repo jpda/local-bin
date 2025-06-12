@@ -11,6 +11,7 @@ hash() { printf $1 | openssl sha256 -binary | base64 ; }
 secret() {
     echo -n "$1" | sha256sum | awk '{print $1}' | xxd -r -p | base64
 }
+alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 
 command -v lsd &>/dev/null && alias ls='lsd --group-dirs first'
 command -v gotop &>/dev/null && alias top='gotop -p'
