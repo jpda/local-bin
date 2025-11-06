@@ -2,7 +2,7 @@ export ZSH="$HOME/.oh-my-zsh"
 
 ZSH_THEME="powerlevel10k/powerlevel10k"
 plugins=(git zsh-autosuggestions zsh-syntax-highlighting macos kubectl)
-source $ZSH/oh-my-zsh.sh
+
 
 # Load normal adding
 if [[ -d ~/.local/bin/zsh ]] then ;
@@ -10,6 +10,10 @@ if [[ -d ~/.local/bin/zsh ]] then ;
 		source $f;
 	done
 fi
+
+eval "$(brew shellenv)";
+
+source $ZSH/oh-my-zsh.sh
 
 [[ ! -f ~/.local/bin/.p10k/.p10k.zsh ]] || source ~/.local/bin/.p10k/.p10k.zsh
 
