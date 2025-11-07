@@ -1,10 +1,154 @@
-#!/usr/bin/env pwsh
+#!/usr/bin/env bash
 
-[CmdletBinding()]
-param ([switch] $On)
+# keylights - simple CLI to control Elgato-style lights (HTTP API)
+# Usage examples:
+#   keylights on                    # turn defaults on (temp 266, brightness 35)
+#   keylights off                   # turn defaults off
+#   keylights on --brightness 23    # turn on with brightness 23
+#   keylights on --temp 266         # turn on with temperature 266
+#   keylights on 10.10.10.50        # operate on the given IP(s) instead of defaults
 
-if($On) {
-  Set-ElgatoKeyLight -Hostname @("10.10.10.40", "10.10.10.41") -Temperature 3400 -Brightness 30 -On
-} else {
-  Set-ElgatoKeyLight -Hostname @("10.10.10.40", "10.10.10.41") -Temperature 3400 -Brightness 30
+set -euo pipefail
+
+# Defaults
+DEFAULT_LIGHTS=(10.10.10.40 10.10.10.41)
+DEFAULT_TEMP=266
+DEFAULT_BRIGHTNESS=35
+API_PORT=9123
+API_PATH="/elgato/lights"
+# Parallel by default. Set PARALLEL=0 to run sequentially.
+PARALLEL=1
+
+print_usage() {
+    cat <<EOF
+Usage: $(basename "$0") <on|off> [--brightness N] [--temp N] [IP...]
+
+Examples:
+  $(basename "$0") on
+  $(basename "$0") on --brightness 23
+  $(basename "$0") on --temp 266 10.10.10.50
+  $(basename "$0") off 10.10.10.40 10.10.10.41
+EOF
 }
+
+is_number() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac }
+
+send_payload() {
+    local ip=$1
+    local on=$2
+    local brightness=$3
+    local temp=$4
+
+    local payload
+    payload=$(cat <<JSON
+{
+  "numberOfLights": 1,
+  "lights": [
+    {
+      "on": $on,
+      "brightness": $brightness,
+      "temperature": $temp
+    }
+  ]
+}
+JSON
+)
+
+    echo "-> $ip: setting on=$on brightness=$brightness temp=$temp"
+    curl --silent --show-error --fail -X PUT "http://${ip}:${API_PORT}${API_PATH}" \
+        -H 'Accept: application/json' -H 'Content-Type: application/json' \
+        --data-raw "$payload"
+}
+
+main() {
+    if [[ $# -lt 1 ]]; then
+        print_usage
+        exit 1
+    fi
+
+    cmd=$1; shift
+    case "$cmd" in
+        on) on_val=1 ;;
+        off) on_val=0 ;;
+        -h|--help|help) print_usage; exit 0 ;;
+        *) echo "Unknown command: $cmd"; print_usage; exit 2 ;;
+    esac
+
+    # defaults
+    brightness=$DEFAULT_BRIGHTNESS
+    temp=$DEFAULT_TEMP
+
+    # parse flags
+    ips=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --brightness|-b)
+                shift
+                if [[ $# -eq 0 ]]; then echo "--brightness requires a value"; exit 2; fi
+                if ! is_number "$1"; then echo "brightness must be a number"; exit 2; fi
+                brightness=$1; shift;;
+            --temp|-t)
+                shift
+                if [[ $# -eq 0 ]]; then echo "--temp requires a value"; exit 2; fi
+                if ! is_number "$1"; then echo "temp must be a number"; exit 2; fi
+                temp=$1; shift;;
+            --sequential)
+                PARALLEL=0; shift;;
+            --parallel)
+                PARALLEL=1; shift;;
+            --help|-h)
+                print_usage; exit 0;;
+            --)
+                shift; ips+=("$@"); break;;
+            -*)
+                echo "Unknown option: $1"; print_usage; exit 2;;
+            *)
+                # positional args treated as IPs
+                ips+=("$1"); shift;;
+        esac
+    done
+
+    # If no IPs provided, use defaults
+    if [[ ${#ips[@]} -eq 0 ]]; then
+        ips=("${DEFAULT_LIGHTS[@]}")
+    fi
+
+    # Basic validation
+    if ! is_number "$brightness" || (( brightness < 0 || brightness > 100 )); then
+        echo "brightness must be a number between 0 and 100"; exit 2
+    fi
+    if ! is_number "$temp"; then
+        echo "temp must be a positive integer"; exit 2
+    fi
+
+    # Apply (parallel by default)
+    exit_code=0
+    pids=()
+
+    for ip in "${ips[@]}"; do
+        if [[ $PARALLEL -eq 1 ]]; then
+            # run in background and collect pid
+            send_payload "$ip" "$on_val" "$brightness" "$temp" &
+            pids+=("$!")
+        else
+            if ! send_payload "$ip" "$on_val" "$brightness" "$temp"; then
+                echo "ERROR: failed to contact $ip" >&2
+                exit_code=1
+            fi
+        fi
+    done
+
+    # Wait for background jobs if parallel
+    if [[ $PARALLEL -eq 1 && ${#pids[@]} -gt 0 ]]; then
+        for pid in "${pids[@]}"; do
+            if ! wait "$pid"; then
+                echo "ERROR: one background job failed (pid $pid)" >&2
+                exit_code=1
+            fi
+        done
+    fi
+
+    return $exit_code
+}
+
+main "$@"
