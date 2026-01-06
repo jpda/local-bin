@@ -32,3 +32,35 @@ alias hostis='ngrok --config $HOME/.local/etc/ngrok.yml,$OIS_ROOT/ngrok.yml star
 alias buildvm="$HOME/.local/bin/azbuildvm && loadconfigenv"
 
 alias cleandotnet='find . -type d \( -name "obj" -o -name "bin" \) -exec rm -rf {} +'
+
+cft() {
+    local BASE_DIR="$HOME/.local/apps/chrome"
+    local BINARY="$BASE_DIR/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+    local PROFILE="$BASE_DIR/profiles"
+    local INSTALLER="$HOME/.local/bin/install_cft.sh"
+
+    if pgrep -f "Google Chrome for Testing" > /dev/null; then
+        true 
+    else
+        if [[ -x "$INSTALLER" ]]; then
+            "$INSTALLER"
+            if [[ $? -ne 0 ]]; then
+                echo "⚠️  Update check failed. Attempting to launch installed version..."
+            fi
+        else
+            echo "⚠️  Installer script not found. Skipping update check."
+        fi
+    fi
+
+    if [[ ! -x "$BINARY" ]]; then
+        echo "❌ Binary not found. Install failed or script path is wrong."
+        return 1
+    fi
+
+    mkdir -p "$PROFILE"
+    nohup "$BINARY" \
+        --user-data-dir="$PROFILE" \
+        --no-first-run \
+        --no-default-browser-check \
+        "$@" > /dev/null 2>&1 &
+}
