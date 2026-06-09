@@ -7,9 +7,9 @@ export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
 pwd_alias() { echo "$PWD"; }
 loadenv() { source $(pwd_alias)/**/*.Development.env; }
 loadconfigenv() { source $CONFIG_ROOT/*.env; }
-hash() { printf $1 | openssl sha256 -binary | base64 ; }
+hash() { printf $1 | openssl sha256 -binary | base64; }
 secret() {
-    echo -n "$1" | sha256sum | awk '{print $1}' | xxd -r -p | base64
+	echo -n "$1" | sha256sum | awk '{print $1}' | xxd -r -p | base64
 }
 alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 
@@ -34,33 +34,57 @@ alias buildvm="$HOME/.local/bin/azbuildvm && loadconfigenv"
 alias cleandotnet='find . -type d \( -name "obj" -o -name "bin" \) -exec rm -rf {} +'
 
 cft() {
-    local BASE_DIR="$HOME/.local/apps/chrome"
-    local BINARY="$BASE_DIR/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
-    local PROFILE="$BASE_DIR/profiles"
-    local INSTALLER="$HOME/.local/bin/install_cft.sh"
+	local BASE_DIR="$HOME/.local/apps/chrome"
+	local BINARY="$BASE_DIR/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+	local PROFILE="$BASE_DIR/profiles"
+	local INSTALLER="$HOME/.local/bin/install_cft.sh"
 
-    if pgrep -f "Google Chrome for Testing" > /dev/null; then
-        true 
-    else
-        if [[ -x "$INSTALLER" ]]; then
-            "$INSTALLER"
-            if [[ $? -ne 0 ]]; then
-                echo "⚠️  Update check failed. Attempting to launch installed version..."
-            fi
-        else
-            echo "⚠️  Installer script not found. Skipping update check."
-        fi
-    fi
+	if pgrep -f "Google Chrome for Testing" >/dev/null; then
+		true
+	else
+		if [[ -x "$INSTALLER" ]]; then
+			"$INSTALLER"
+			if [[ $? -ne 0 ]]; then
+				echo "⚠️  Update check failed. Attempting to launch installed version..."
+			fi
+		else
+			echo "⚠️  Installer script not found. Skipping update check."
+		fi
+	fi
 
-    if [[ ! -x "$BINARY" ]]; then
-        echo "❌ Binary not found. Install failed or script path is wrong."
-        return 1
-    fi
+	if [[ ! -x "$BINARY" ]]; then
+		echo "❌ Binary not found. Install failed or script path is wrong."
+		return 1
+	fi
 
-    mkdir -p "$PROFILE"
-    nohup "$BINARY" \
-        --user-data-dir="$PROFILE" \
-        --no-first-run \
-        --no-default-browser-check \
-        "$@" > /dev/null 2>&1 &
+	mkdir -p "$PROFILE"
+	nohup "$BINARY" \
+		--user-data-dir="$PROFILE" \
+		--no-first-run \
+		--no-default-browser-check \
+		"$@" >/dev/null 2>&1 &
+}
+
+# Add to your ~/.zshrc (or ~/.bashrc)
+runenv() {
+	local envfile="${ENVFILE:-$(ls *Development.env 2>/dev/null | head -n1)}"
+	envfile="${envfile:-.env}"
+
+	if [[ ! -f "$envfile" ]]; then
+		echo "No $envfile found in current directory"
+		return 1
+	fi
+
+	# Read the .env file, skip comments and blank lines
+	local env_args=()
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		# Strip leading/trailing whitespace
+		line="${line#"${line%%[![:space:]]*}"}"
+		line="${line%"${line##*[![:space:]]}"}"
+		# Skip comments and empty lines
+		[[ -z "$line" || "$line" == \#* ]] && continue
+		env_args+=("$line")
+	done <"$envfile"
+
+	env "${env_args[@]}" "$@"
 }
