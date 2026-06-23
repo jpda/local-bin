@@ -69,9 +69,8 @@ while [[ $# -gt 0 ]]; do
     shift # past value
     ;;
   -f | --force)
-    FORCE_INSTALL="$2"
+    FORCE_INSTALL=true
     shift # past argument
-    shift # past value
     ;;
   -d | --download-only)
     DOWNLOAD_ONLY=true
