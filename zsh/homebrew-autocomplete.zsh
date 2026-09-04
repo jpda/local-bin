@@ -1,16 +1,9 @@
 # /bin/zsh
 # homebrew autocompletions
-if type brew &>/dev/null; then
-	FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
-
-	autoload -Uz compinit
-	compinit
+if type brew >/dev/null 2>&1; then
+    FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
 fi
 
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-	source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
-if command -v ngrok &>/dev/null; then
-  eval "$(ngrok completion)"
+if command -v ngrok >/dev/null 2>&1; then
+    eval "$(ngrok completion)"
 fi
