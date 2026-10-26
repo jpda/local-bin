@@ -14,6 +14,8 @@ ssh_keys_sync() {
     local src_dir dest_dir file
     local -a private_keys
 
+	[[ -z $ONEDRIVECONSUMER ]] && { echo "ONEDRIVECONSUMER is required, skipping..." >&2; return 1 }
+
     src_dir="${ONEDRIVECONSUMER}/ssh/keys"
     dest_dir="${HOME}/.ssh/keys"
 
